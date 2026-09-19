@@ -1,6 +1,7 @@
 // Tests for Chinese Zodiac Baseline Interpretations
 // Feature: popular-fortune-features
 
+import { describe, it, expect } from 'vitest';
 import { getBaselineChineseZodiacReading } from './baseline';
 import { ChineseZodiacAnimal, ChineseElement } from './types';
 import { TimePeriod } from '../horoscope/types';

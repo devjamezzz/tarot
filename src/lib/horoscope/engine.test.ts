@@ -1,6 +1,7 @@
 // Tests for Horoscope Engine
 // Feature: popular-fortune-features
 
+import { describe, it, expect } from 'vitest';
 import { 
   calculateDateRange, 
   getBaselineHoroscopeReading, 

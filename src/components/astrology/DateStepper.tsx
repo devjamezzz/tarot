@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { THAI_MONTHS_SHORT, toBuddhistYear } from "@/lib/format/thaiDate";
 
 export interface DateValue {
   year: number;
@@ -18,10 +19,19 @@ export interface DateStepperProps {
   className?: string;
 }
 
-const THAI_MONTH_SHORT = [
-  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
-];
+type Field = "year" | "month" | "day" | "hour";
+
+const FIELD_TH: Record<Field, string> = {
+  year: "ปี",
+  month: "เดือน",
+  day: "วัน",
+  hour: "ชั่วโมง",
+};
+
+function stepLabel(field: Field, delta: number): string {
+  const unit = FIELD_TH[field];
+  return delta < 0 ? `ย้อน ${Math.abs(delta)} ${unit}` : `เพิ่ม ${delta} ${unit}`;
+}
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
@@ -32,10 +42,11 @@ function clampDay(year: number, month: number, day: number): number {
   return Math.min(Math.max(1, day), max);
 }
 
-const BTN_CLASS =
-  "inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-bg text-fg-muted hover:bg-surface hover:text-fg active:scale-95 transition";
-
-type Field = "year" | "month" | "day" | "hour";
+const BTN_CLASS = cn(
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-pill border border-line bg-surface text-fg-muted",
+  "transition-colors hover:bg-sunk hover:text-fg active:scale-95 motion-reduce:transition-none",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+);
 
 function StepperGroup({
   label,
@@ -49,46 +60,30 @@ function StepperGroup({
   onShift: (field: Field, delta: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2 py-1.5">
-      {canDouble && (
-        <button
-          type="button"
-          aria-label={`-12 ${field}`}
-          onClick={() => onShift(field, -12)}
-          className={BTN_CLASS}
-        >
-          <ChevronsLeft className="w-3.5 h-3.5" />
+    <div
+      role="group"
+      aria-label={FIELD_TH[field]}
+      className="flex items-center gap-1 rounded-card border border-line-faint bg-sunk px-1.5 py-1.5"
+    >
+      {canDouble ? (
+        <button type="button" aria-label={stepLabel(field, -12)} onClick={() => onShift(field, -12)} className={BTN_CLASS}>
+          <ChevronsLeft className="size-4" strokeWidth={1.5} />
         </button>
-      )}
-      <button
-        type="button"
-        aria-label={`-1 ${field}`}
-        onClick={() => onShift(field, -1)}
-        className={BTN_CLASS}
-      >
-        <ChevronLeft className="w-3.5 h-3.5" />
+      ) : null}
+      <button type="button" aria-label={stepLabel(field, -1)} onClick={() => onShift(field, -1)} className={BTN_CLASS}>
+        <ChevronLeft className="size-4" strokeWidth={1.5} />
       </button>
-      <div className="min-w-[3.5rem] text-center text-sm font-medium text-fg tabular-nums">
+      <div className="min-w-[3.5rem] text-center text-sm font-bold tabular-nums text-fg" aria-live="polite">
         {label}
       </div>
-      <button
-        type="button"
-        aria-label={`+1 ${field}`}
-        onClick={() => onShift(field, 1)}
-        className={BTN_CLASS}
-      >
-        <ChevronRight className="w-3.5 h-3.5" />
+      <button type="button" aria-label={stepLabel(field, 1)} onClick={() => onShift(field, 1)} className={BTN_CLASS}>
+        <ChevronRight className="size-4" strokeWidth={1.5} />
       </button>
-      {canDouble && (
-        <button
-          type="button"
-          aria-label={`+12 ${field}`}
-          onClick={() => onShift(field, 12)}
-          className={BTN_CLASS}
-        >
-          <ChevronsRight className="w-3.5 h-3.5" />
+      {canDouble ? (
+        <button type="button" aria-label={stepLabel(field, 12)} onClick={() => onShift(field, 12)} className={BTN_CLASS}>
+          <ChevronsRight className="size-4" strokeWidth={1.5} />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -134,20 +129,18 @@ export function DateStepper({ value, onChange, className }: DateStepperProps) {
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-2", className)}>
-      <StepperGroup label={`${value.year + 543}`} field="year" canDouble onShift={shift} />
-      <StepperGroup
-        label={THAI_MONTH_SHORT[value.month - 1]}
-        field="month"
-        canDouble
-        onShift={shift}
-      />
-      <StepperGroup label={`${value.day}`} field="day" onShift={shift} />
-      <StepperGroup
-        label={`${String(value.hour).padStart(2, "0")}:${String(value.minute).padStart(2, "0")}`}
-        field="hour"
-        onShift={shift}
-      />
+    <div className={cn("space-y-2", className)}>
+      <p className="eyebrow text-center">วันที่ทำนาย (ดวงจร)</p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <StepperGroup label={`${toBuddhistYear(value.year)}`} field="year" canDouble onShift={shift} />
+        <StepperGroup label={THAI_MONTHS_SHORT[value.month - 1]} field="month" canDouble onShift={shift} />
+        <StepperGroup label={`${value.day}`} field="day" onShift={shift} />
+        <StepperGroup
+          label={`${String(value.hour).padStart(2, "0")}:${String(value.minute).padStart(2, "0")}`}
+          field="hour"
+          onShift={shift}
+        />
+      </div>
     </div>
   );
 }

@@ -3,35 +3,25 @@
 import * as React from "react";
 import { loginWithLiff, isInLineClient } from "@/lib/auth/liff";
 import { syncLocalHistoryToServer } from "@/lib/auth/syncLocal";
+import { AuthContext, useAuth, useLoginSheet } from "./authContext";
+import type { AuthUser, AuthContextValue, LoginSheetState } from "./authContext";
+import { LoginSheet } from "./LoginSheet";
 
-export interface AuthUser {
-  id: string;
-  displayName: string | null;
-  pictureUrl: string | null;
-  statusMessage?: string | null;
-  credits: number;
-  membershipTier: string;
-  isAdmin: boolean;
-}
+export type { AuthUser, AuthContextValue, LoginSheetState };
+export { useAuth, useLoginSheet };
 
-interface AuthContextValue {
-  user: AuthUser | null;
-  loading: boolean;
-  login: () => void;
-  logout: () => Promise<void>;
-  refresh: () => Promise<void>;
-}
-
-const AuthContext = React.createContext<AuthContextValue | null>(null);
+const CLOSED_SHEET: LoginSheetState = { open: false };
 
 /**
  * Client auth context. Effect-driven (no SSR state) to match the StoreHydrator
  * discipline and avoid React 19 hydration mismatches. On mount it fetches the
- * session; inside the LINE app it auto-attempts LIFF login.
+ * session; inside the LINE app it auto-attempts LIFF login. Also owns the
+ * single LoginSheet instance so any page can call openLoginSheet(reason).
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [loginSheet, setLoginSheet] = React.useState<LoginSheetState>(CLOSED_SHEET);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -82,16 +72,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = React.useMemo(
-    () => ({ user, loading, login, logout, refresh }),
-    [user, loading, login, logout, refresh],
+  const openLoginSheet = React.useCallback((reason?: string) => {
+    setLoginSheet({ open: true, reason });
+  }, []);
+
+  const closeLoginSheet = React.useCallback(() => {
+    setLoginSheet(CLOSED_SHEET);
+  }, []);
+
+  // A successful in-LINE (LIFF) login resolves without navigation — dismiss the sheet.
+  const sheetOpen = loginSheet.open;
+  React.useEffect(() => {
+    if (user && sheetOpen) setLoginSheet(CLOSED_SHEET);
+  }, [user, sheetOpen]);
+
+  const value = React.useMemo<AuthContextValue>(
+    () => ({ user, loading, login, logout, refresh, openLoginSheet, closeLoginSheet, loginSheet }),
+    [user, loading, login, logout, refresh, openLoginSheet, closeLoginSheet, loginSheet],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = React.useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
-  return ctx;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <LoginSheet open={loginSheet.open} reason={loginSheet.reason} onClose={closeLoginSheet} />
+    </AuthContext.Provider>
+  );
 }

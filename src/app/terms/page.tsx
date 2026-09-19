@@ -1,18 +1,54 @@
-import { AppBar } from "@/components/nav/AppBar";
-import { Card } from "@/components/ui/Card";
+import type { Metadata } from "next";
+import { LegalDocument, type LegalSection } from "@/components/auth/LegalDocument";
+
+export const metadata: Metadata = {
+  title: "ข้อกำหนดการใช้งาน",
+};
+
+// ร่าง — เจ้าของระบบต้องตรวจและยืนยันข้อความก่อนเผยแพร่จริง
+const SECTIONS: LegalSection[] = [
+  {
+    heading: "ขอบเขตของบริการ",
+    paragraphs: [
+      "REFFORTUNE ให้บริการดูดวงออนไลน์เพื่อการสะท้อนตนเองและความบันเทิง ไม่ใช่คำแนะนำทางการแพทย์ กฎหมาย หรือการเงิน",
+      "ผู้ใช้ควรมีอายุ 18 ปีขึ้นไป หรือได้รับความยินยอมจากผู้ปกครองก่อนใช้บริการ",
+    ],
+  },
+  {
+    heading: "บัญชีและเครดิต",
+    paragraphs: [
+      "การเข้าสู่ระบบทำผ่านบัญชี LINE ของคุณ คุณมีหน้าที่ดูแลการเข้าถึงอุปกรณ์และบัญชีของตนเอง",
+      "เครดิตใช้ได้เฉพาะบริการภายในเว็บไซต์ ไม่สามารถแลกเปลี่ยนเป็นเงินสดหรือโอนให้ผู้อื่น",
+      "เงื่อนไขการคืนเงินของแพ็กเกจที่ชำระแล้ว เป็นไปตามที่ระบุในหน้าแพ็กเกจ",
+    ],
+  },
+  {
+    heading: "เนื้อหาและทรัพย์สินทางปัญญา",
+    paragraphs: [
+      "ภาพไพ่ ข้อความ และงานออกแบบทั้งหมดเป็นของ REFFORTUNE หรือผู้ให้สิทธิ์",
+      "คุณสามารถแชร์ผลไพ่ของตนเองได้ แต่ห้ามนำเนื้อหาไปใช้ในเชิงพาณิชย์โดยไม่ได้รับอนุญาต",
+    ],
+  },
+  {
+    heading: "ข้อจำกัดความรับผิด",
+    paragraphs: [
+      "ผลดูดวงไม่ใช่การรับประกันเหตุการณ์ในอนาคต การตัดสินใจทั้งหมดเป็นของคุณ",
+      "เราอาจปรับปรุงหรือหยุดให้บริการบางส่วนชั่วคราวเพื่อการบำรุงรักษา โดยจะแจ้งให้ทราบเมื่อทำได้",
+    ],
+  },
+  {
+    heading: "การเปลี่ยนแปลงข้อกำหนด",
+    paragraphs: ["เราอาจปรับปรุงข้อกำหนดนี้เป็นครั้งคราว ฉบับล่าสุดจะประกาศบนหน้านี้เสมอ"],
+  },
+];
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto w-full max-w-lg">
-      <AppBar title="Terms" backHref="/profile" />
-      <div className="px-5 pb-8">
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-fg">Coming soon</p>
-          <p className="mt-2 text-sm text-fg-muted">
-            Terms of service will be published here.
-          </p>
-        </Card>
-      </div>
-    </main>
+    <LegalDocument
+      title="ข้อกำหนดการใช้งาน"
+      caption="ฉบับร่าง · รอเจ้าของระบบยืนยันเนื้อหา"
+      sections={SECTIONS}
+      draft
+    />
   );
 }

@@ -59,7 +59,7 @@ export function PlanetTable({ chart, className }: PlanetTableProps) {
                   </span>
                   <span className="font-medium text-fg">{p.thaiName}</span>
                   {p.retrograde && (
-                    <span className="ml-1 text-[10px] text-rose-600 align-super">
+                    <span className="ml-1 text-xs text-danger align-super">
                       พ.
                     </span>
                   )}
@@ -80,16 +80,16 @@ export function PlanetTable({ chart, className }: PlanetTableProps) {
                 <Td muted>{nak.thaiName}</Td>
                 <Td muted>{PADA_THAI[p.nakshatra.pada - 1]}</Td>
                 <Td muted>
-                  <span className="text-[10px]">{roekShort(p.roekGroupId)}</span>
+                  <span className="text-xs">{roekShort(p.roekGroupId)}</span>
                 </Td>
                 <Td>
                   {p.poison.kind ? (
                     <span
                       className={cn(
-                        "text-[10px] font-medium",
+                        "text-xs font-medium",
                         p.poison.severity === "heavy"
-                          ? "text-rose-600"
-                          : "text-amber-600"
+                          ? "text-danger"
+                          : "text-warning"
                       )}
                     >
                       {p.poison.label}
@@ -99,7 +99,7 @@ export function PlanetTable({ chart, className }: PlanetTableProps) {
                   )}
                 </Td>
                 <Td>
-                  <span className="text-[10px] text-violet-700 font-medium">
+                  <span className="text-xs text-gold font-medium">
                     {dignityText}
                   </span>
                 </Td>

@@ -1,89 +1,160 @@
 "use client";
 
-import * as React from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardDesc, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { AppBar } from "@/components/nav/AppBar";
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Briefcase,
+  Compass,
+  Heart,
+  Lightbulb,
+  Star,
+  ThumbsUp,
+  TriangleAlert,
+  User,
+} from "lucide-react";
+import { ReadingResultShell } from "@/components/reading/ReadingResultShell";
+import { Card } from "@/components/ui/Card";
+import {
+  NAME_NUMEROLOGY_FORM_HREF,
+  NAME_NUMEROLOGY_LABEL,
+  nameNumerologyResultHref,
+} from "@/components/verticals/NameNumerologyForm";
+import { ReadingList, ReadingSection } from "@/components/verticals/ReadingSection";
+import { ResultActions } from "@/components/verticals/ResultActions";
+import { ResultError, ResultLoading } from "@/components/verticals/ResultStates";
+import { useEngineReading } from "@/components/verticals/useEngineReading";
 import { getBaselineNameNumerology } from "@/lib/name-numerology/engine";
+import type { NameNumerologyInput, NameNumerologyReading } from "@/lib/name-numerology/types";
+import { SITE_URL } from "@/lib/site";
 
+const TITLE = "ผลการวิเคราะห์ชื่อ";
+
+async function runNameNumerology(input: NameNumerologyInput): Promise<NameNumerologyReading> {
+  return getBaselineNameNumerology(input);
+}
+
+function ScoreTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-card border border-line-faint bg-sunk px-3 py-3 text-center">
+      <p className="text-[13px] text-fg-muted">{label}</p>
+      <p className="mt-1 font-display text-3xl font-semibold leading-none text-gold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+/** /name-numerology/result?firstName=&lastName= */
 export default function ResultClient() {
-  const sp = useSearchParams();
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const firstName = (searchParams.get("firstName") ?? "").trim();
+  const lastName = (searchParams.get("lastName") ?? "").trim();
 
-  const firstName = (sp.get("firstName") ?? "").trim();
-  const lastName = (sp.get("lastName") ?? "").trim();
+  const params = useMemo<NameNumerologyInput | null>(
+    () => (firstName && lastName ? { firstName, lastName } : null),
+    [firstName, lastName]
+  );
+  const { status, reading, error } = useEngineReading(params, runNameNumerology);
 
-  const [error, setError] = React.useState<string>("");
-  const [reading, setReading] = React.useState<ReturnType<typeof getBaselineNameNumerology> | null>(null);
+  if (status === "invalid") {
+    return (
+      <ResultError
+        label={NAME_NUMEROLOGY_LABEL}
+        title={TITLE}
+        message="กรุณากรอกชื่อและนามสกุลก่อนดูผล"
+        backHref={NAME_NUMEROLOGY_FORM_HREF}
+        backLabel="กลับไปกรอกชื่อ"
+      />
+    );
+  }
+  if (status === "loading") {
+    return <ResultLoading label={NAME_NUMEROLOGY_LABEL} title={TITLE} backHref={NAME_NUMEROLOGY_FORM_HREF} />;
+  }
+  if (status === "error" || !reading) {
+    return (
+      <ResultError
+        label={NAME_NUMEROLOGY_LABEL}
+        title={TITLE}
+        message={error}
+        backHref={NAME_NUMEROLOGY_FORM_HREF}
+        backLabel="กลับไปกรอกใหม่"
+      />
+    );
+  }
 
-  React.useEffect(() => {
-    try {
-      if (!firstName || !lastName) {
-        setError("กรุณากรอกชื่อและนามสกุล");
-        return;
-      }
-      const r = getBaselineNameNumerology({ firstName, lastName });
-      setReading(r);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
-    }
-  }, [firstName, lastName]);
+  const fullName = `${reading.firstName} ${reading.lastName}`;
+  const lineText = [
+    `เลขศาสตร์ชื่อ "${fullName}" เลขชะตา ${reading.scores.destiny} จาก REFFORTUNE`,
+    "อยากให้หมอดูช่วยขยายความเพิ่มเติม",
+    `${SITE_URL}${nameNumerologyResultHref(reading.firstName, reading.lastName)}`,
+  ].join("\n");
 
   return (
-    <main className="mx-auto w-full max-w-lg px-5 pb-10 pt-8">
-      <header className="space-y-2">
-        <AppBar title="เลขศาสตร์ชื่อ" className="px-0 pt-0 pb-0" />
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">ผลการวิเคราะห์ชื่อ</h1>
-        <p className="text-sm text-fg-muted">ผลลัพธ์นี้เป็น baseline (คงที่) และจะต่อยอด AI ได้ภายหลัง</p>
-      </header>
-
-      {error ? (
-        <Card className="mt-6 p-5">
-          <CardTitle>เกิดปัญหา</CardTitle>
-          <CardDesc className="mt-2 text-danger">{error}</CardDesc>
-          <div className="mt-4">
-            <Button variant="secondary" className="w-full" onClick={() => router.push("/name-numerology")}>กลับไปกรอกใหม่</Button>
-          </div>
-        </Card>
-      ) : reading ? (
-        <section className="mt-6 space-y-4">
-          <Card className="p-5">
-            <CardTitle>{reading.firstName} {reading.lastName}</CardTitle>
-            <CardDesc className="mt-1">เลขชะตา: {reading.scores.destiny} • เลขชื่อเต็ม: {reading.scores.fullName}</CardDesc>
+    <ReadingResultShell
+      label={NAME_NUMEROLOGY_LABEL}
+      title={TITLE}
+      caption={`${fullName} · เลขชะตา ${reading.scores.destiny}`}
+      backHref={NAME_NUMEROLOGY_FORM_HREF}
+      computed={
+        <div className="space-y-3">
+          <Card data-testid="result-hero" className="animate-fade-up motion-safe-fade">
+            <h2 className="text-center font-display text-[22px] font-semibold text-fg">{fullName}</h2>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <ScoreTile label="เลขชื่อ" value={reading.scores.firstName} />
+              <ScoreTile label="เลขนามสกุล" value={reading.scores.lastName} />
+              <ScoreTile label="เลขชื่อเต็ม" value={reading.scores.fullName} />
+              <ScoreTile label="เลขชะตา" value={reading.scores.destiny} />
+            </div>
           </Card>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4">
-              <p className="text-xs font-medium text-fg-muted">เลขชื่อ</p>
-              <p className="mt-2 text-3xl font-semibold text-fg">{reading.scores.firstName}</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs font-medium text-fg-muted">เลขนามสกุล</p>
-              <p className="mt-2 text-3xl font-semibold text-fg">{reading.scores.lastName}</p>
-            </Card>
-          </div>
-
-          <Card className="p-5">
-            <CardTitle>สรุปบุคลิกภาพ</CardTitle>
-            <p className="mt-2 text-sm leading-relaxed text-fg-muted">{reading.interpretation.personality}</p>
-          </Card>
-
-          <Card className="p-5">
-            <CardTitle>คำแนะนำ</CardTitle>
-            <p className="mt-2 text-sm leading-relaxed text-fg-muted">{reading.advice}</p>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button className="w-full" onClick={() => router.push("/name-numerology")}>วิเคราะห์ใหม่</Button>
-            <Button className="w-full" variant="secondary" onClick={() => router.push("/library/saved")}>ไปคลังบันทึก</Button>
-          </div>
-        </section>
-      ) : (
-        <Card className="mt-6 p-5">
-          <p className="text-sm text-fg-muted">กำลังประมวลผล...</p>
-        </Card>
-      )}
-    </main>
+          <p className="eyebrow pt-2">ความหมายตามตำรา</p>
+          <ReadingSection icon={User} title="บุคลิกภาพ" index={0}>
+            {reading.interpretation.personality}
+          </ReadingSection>
+          <ReadingSection icon={ThumbsUp} title="จุดแข็ง" index={1}>
+            <ReadingList items={reading.interpretation.strengths} marker="check" />
+          </ReadingSection>
+          <ReadingSection icon={TriangleAlert} title="จุดที่ควรพัฒนา" index={2}>
+            <ReadingList items={reading.interpretation.weaknesses} marker="alert" />
+          </ReadingSection>
+          <ReadingSection icon={Compass} title="เส้นทางชีวิต" index={3}>
+            {reading.interpretation.lifePath}
+          </ReadingSection>
+          <ReadingSection icon={Briefcase} title="การงาน" index={4}>
+            {reading.interpretation.career}
+          </ReadingSection>
+          <ReadingSection icon={Heart} title="ความสัมพันธ์" index={5}>
+            {reading.interpretation.relationships}
+          </ReadingSection>
+          <ReadingSection icon={Star} title="เลขมงคลของคุณ" index={6}>
+            <div className="flex flex-wrap gap-2">
+              {reading.luckyNumbers.map((number) => (
+                <span
+                  key={number}
+                  className="inline-flex h-10 min-w-10 items-center justify-center rounded-pill border border-gold px-3 text-sm font-bold tabular-nums text-gold"
+                >
+                  {number}
+                </span>
+              ))}
+            </div>
+          </ReadingSection>
+          <ReadingSection icon={Lightbulb} title="คำแนะนำ" index={7}>
+            {reading.advice}
+          </ReadingSection>
+        </div>
+      }
+      cta={
+        <ResultActions
+          lineText={lineText}
+          links={[
+            { href: NAME_NUMEROLOGY_FORM_HREF, label: "วิเคราะห์ชื่อใหม่" },
+            { href: "/", label: "กลับหน้าหลัก" },
+          ]}
+        />
+      }
+      trust={{
+        computedFrom: `เลขศาสตร์จากตัวอักษรในชื่อและนามสกุล "${fullName}" ตามตำราเลขศาสตร์ไทย`,
+        confidence: "ปานกลาง",
+        aiUsed: false,
+      }}
+    />
   );
 }

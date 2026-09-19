@@ -10,7 +10,7 @@ function normalizeMarkdown(value: unknown): string {
 }
 
 const FALLBACK_MARKDOWN =
-  "#### ภาพรวมพลังงานของเส้นทางนี้\n\nยังไม่สามารถสร้างคำทำนายเชิงลึกได้ในขณะนี้ ลองอีกครั้งในไม่กี่นาทีนะคะ/ครับ";
+  "#### ภาพรวมพลังงานของเส้นทางนี้\n\nความหมายตามตำราของไพ่ทั้งสองใบที่คุณเปิด อ่านได้จากส่วนด้านบน";
 
 export async function POST(req: Request) {
   try {
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       const parsed = JSON.parse(raw);
       markdown = [
         parsed.summary,
-        ...(parsed.sections || []).map((s: any) => `#### ${s.title}\n\n${s.content}`),
+        ...(parsed.sections || []).map((s: { title?: string; content?: string }) => `#### ${s.title ?? ""}\n\n${s.content ?? ""}`),
         `#### จุดแข็งที่ใช้ได้ทันที\n\n${(parsed.highlights?.strengths || []).map((t: string) => `- ${t}`).join('\n')}`,
         `#### จุดที่ควรระวัง/กับดัก\n\n${(parsed.highlights?.risks || []).map((t: string) => `- ${t}`).join('\n')}`,
         `#### แผนปฏิบัติ 7 วัน\n\n${(parsed.highlights?.action_plan || []).map((t: string) => `- ${t}`).join('\n')}`,

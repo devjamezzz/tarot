@@ -83,7 +83,7 @@ export async function POST(req: Request) {
           summary: body.baseline.advice,
           enhancedFortune: body.baseline.fortune,
           advice: body.baseline.advice,
-          culturalInsight: "ขออภัย ระบบยังไม่พร้อม สรุปจากความรู้พื้นฐานให้ก่อน",
+          culturalInsight: "ความหมายตามตำราปีนักษัตรและธาตุประจำปี",
         },
       });
     }
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
           summary: body.baseline.advice,
           enhancedFortune: body.baseline.fortune,
           advice: body.baseline.advice,
-          culturalInsight: "ขออภัย ระบบขัดข้องชั่วคราว",
+          culturalInsight: "ความหมายตามตำราปีนักษัตรและธาตุประจำปี",
         },
       });
     }
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
           summary: body.baseline.advice,
           enhancedFortune: body.baseline.fortune,
           advice: body.baseline.advice,
-          culturalInsight: "ขออภัย ระบบขัดข้องชั่วคราว",
+          culturalInsight: "ความหมายตามตำราปีนักษัตรและธาตุประจำปี",
         },
       });
     }

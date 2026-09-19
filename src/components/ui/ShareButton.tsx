@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Check, Share2 } from "lucide-react";
 import { Button, ButtonProps } from "./Button";
 
 export interface ShareData {
@@ -18,7 +19,7 @@ export function ShareButton({ shareData, onShareSuccess, children, ...props }: S
   const [copied, setCopied] = React.useState(false);
 
   const handleShare = async () => {
-    // 1. Try Web Share API (Mobile / Modern Browsers)
+    // 1. Web Share API (mobile / modern browsers)
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
@@ -28,21 +29,20 @@ export function ShareButton({ shareData, onShareSuccess, children, ...props }: S
         });
         onShareSuccess?.();
         return;
-      } catch (err) {
-        // User cancelled or share failed, fallback to copy
-        console.log("Share failed or cancelled:", err);
+      } catch {
+        // User cancelled or share failed — fall through to clipboard copy
       }
     }
 
-    // 2. Fallback: Copy to Clipboard
+    // 2. Fallback: copy to clipboard
     try {
       const fullText = `${shareData.title}\n${shareData.text}\n${shareData.url}`;
       await navigator.clipboard.writeText(fullText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       onShareSuccess?.();
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch {
+      // Clipboard unavailable (insecure context / permissions) — nothing else to try
     }
   };
 
@@ -50,20 +50,14 @@ export function ShareButton({ shareData, onShareSuccess, children, ...props }: S
     <Button onClick={handleShare} {...props}>
       {copied ? (
         <span className="flex items-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          Copied!
+          <Check className="size-4" strokeWidth={2.5} />
+          คัดลอกลิงก์แล้ว
         </span>
       ) : (
         children || (
           <span className="flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-            Share
+            <Share2 className="size-4" strokeWidth={1.5} />
+            แชร์
           </span>
         )
       )}

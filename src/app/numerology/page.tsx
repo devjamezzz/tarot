@@ -1,14 +1,31 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { Share2, RefreshCw } from "lucide-react";
-import { analyzeThaiPhone } from "@/lib/numerology/engine";
+import { Hash, RefreshCw, Share2 } from "lucide-react";
+import { AppBar } from "@/components/nav/AppBar";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/Button";
+import { InlineError } from "@/components/ui/ErrorDisplay";
+import { LineCtaButton } from "@/components/ui/LineCtaButton";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ReadingBlocks } from "@/components/reading/ReadingBlocks";
+import { ReadingResultShell } from "@/components/reading/ReadingResultShell";
+import { Toast, TOAST_COPIED, useToast } from "@/components/verticals/local/Toast";
+import { StepsCard } from "@/components/verticals/local/StepsCard";
+import { ExploreMore } from "@/components/verticals/local/ExploreMore";
+import { analyzeThaiPhone, type NumerologyResult } from "@/lib/numerology/engine";
 import { runReadingPipeline } from "@/lib/reading/pipeline";
-import { removeReading } from "@/lib/library/storage";
-import { useTheme } from "@/lib/theme/ThemeProvider";
-import { cn } from "@/lib/cn";
-import { BrandLogo } from "@/components/ui/BrandLogo";
+import { formatThaiDate } from "@/lib/format/thaiDate";
+
+const FALLBACK_MS = 7000;
+
+type AiState =
+  | { status: "loading" }
+  | { status: "ai"; summary: string; cardStructure: string }
+  | { status: "fallback" };
 
 function normalizeText(value: unknown): string {
   if (typeof value === "string") return value;
@@ -24,48 +41,78 @@ function normalizeText(value: unknown): string {
   return "";
 }
 
+function ScoreCard({ baseline, summary }: { baseline: NumerologyResult; summary: string }) {
+  return (
+    <Card>
+      <p className="eyebrow">คะแนนพลังเบอร์</p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <span className="font-sans text-[44px] font-bold leading-none tracking-[0.12em] tabular-nums text-gold">
+          {baseline.score}
+        </span>
+        <span className="pb-1 text-fg-muted">/ 99</span>
+        <span className="ml-auto rounded-pill border border-gold bg-gold-soft px-3 py-1 text-sm text-gold">
+          {baseline.tier}
+        </span>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-card border border-line-faint bg-sunk p-3">
+          <dt className="text-[13px] text-fg-muted">เลขรวม</dt>
+          <dd className="mt-1 text-lg font-bold tabular-nums text-fg">{baseline.total}</dd>
+        </div>
+        <div className="rounded-card border border-line-faint bg-sunk p-3">
+          <dt className="text-[13px] text-fg-muted">เลขราก</dt>
+          <dd className="mt-1 text-lg font-bold tabular-nums text-fg">{baseline.root}</dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">{summary}</p>
+    </Card>
+  );
+}
+
+function AiCards({ summary, cardStructure }: { summary: string; cardStructure: string }) {
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="eyebrow">บทวิเคราะห์</p>
+        <p className="mt-2 whitespace-pre-line text-base leading-[1.65] text-fg">{summary}</p>
+      </Card>
+      {cardStructure ? (
+        <Card variant="sunk">
+          <p className="eyebrow">รายละเอียด</p>
+          <p className="mt-2 whitespace-pre-line text-base leading-[1.65] text-fg">{cardStructure}</p>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+const HOW_IT_WORKS_STEPS: ReadonlyArray<string> = [
+  "กรอกเบอร์โทรศัพท์ 10 หลักที่คุณใช้อยู่",
+  "ระบบรวมเลขและถอดเลขรากตามหลักเลขศาสตร์ ผลเดิมทุกครั้งสำหรับเบอร์เดียวกัน",
+  "รับคะแนนจากเต็ม 99 พร้อมแนวโน้มด้านงาน เงิน และความสัมพันธ์",
+];
+
 export default function NumerologyPage() {
-  const { theme } = useTheme();
-  const isPastel = theme === "pastel";
-  const isRainbow = theme === "rainbow";
+  const toast = useToast();
   const [phone, setPhone] = useState("");
   const [submittedPhone, setSubmittedPhone] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [ai, setAi] = useState<AiState>({ status: "loading" });
 
-  const baseline = useMemo(() => {
-    if (!submittedPhone) return null;
-    return analyzeThaiPhone(submittedPhone);
-  }, [submittedPhone]);
-
-  const session = useMemo(() => {
-    if (!baseline) return null;
-    return runReadingPipeline({ kind: "numerology", phone: baseline.normalizedPhone });
-  }, [baseline]);
-
-  const [aiReading, setAiReading] = useState<null | { summary: string; cardStructure: string }>(null);
-
-  // Save
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const baseline = useMemo(() => (submittedPhone ? analyzeThaiPhone(submittedPhone) : null), [submittedPhone]);
+  const session = useMemo(
+    () => (baseline ? runReadingPipeline({ kind: "numerology", phone: baseline.normalizedPhone }) : null),
+    [baseline]
+  );
+  const readAt = useMemo(() => (submittedPhone ? formatThaiDate(new Date()) : ""), [submittedPhone]);
 
   useEffect(() => {
-    if (!submittedPhone) {
-      setAiReading(null);
-      setSavedId(null);
-      return;
-    }
+    if (!submittedPhone) return;
 
     const controller = new AbortController();
-
-    const fallback = session
-      ? {
-          summary: session.summary,
-          cardStructure: session.blocks.map((b) => `${b.title}: ${b.body}`).join("\n\n"),
-        }
-      : null;
-
     const fallbackTimer = setTimeout(() => {
-      if (fallback) setAiReading((prev) => prev ?? fallback);
-    }, 7000);
+      setAi((prev) => (prev.status === "loading" ? { status: "fallback" } : prev));
+    }, FALLBACK_MS);
 
     fetch("/api/ai/numerology", {
       method: "POST",
@@ -73,184 +120,154 @@ export default function NumerologyPage() {
       body: JSON.stringify({ phone: submittedPhone }),
       signal: controller.signal,
     })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data?.ai ?? null;
-      })
-      .then((ai) => {
-        if (!ai) {
-          if (fallback) setAiReading((prev) => prev ?? fallback);
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const payload = data?.ai;
+        const summary = normalizeText(payload?.summary);
+        const cardStructure = normalizeText(payload?.cardStructure);
+        if (!payload || data?.fallback || !summary) {
+          setAi({ status: "fallback" });
           return;
         }
-        setAiReading({
-          summary: normalizeText(ai.summary) || (fallback?.summary ?? ""),
-          cardStructure: normalizeText(ai.cardStructure) || (fallback?.cardStructure ?? ""),
-        });
+        setAi({ status: "ai", summary, cardStructure });
       })
       .catch(() => {
-        if (fallback) setAiReading((prev) => prev ?? fallback);
+        if (!controller.signal.aborted) setAi({ status: "fallback" });
       })
-      .finally(() => {
-        clearTimeout(fallbackTimer);
-      });
+      .finally(() => clearTimeout(fallbackTimer));
 
     return () => {
       controller.abort();
+      clearTimeout(fallbackTimer);
     };
-  }, [session, submittedPhone]);
+  }, [submittedPhone]);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-
     const raw = phone.trim();
-    if (!raw) return;
-
-    const r = analyzeThaiPhone(raw);
-    if (!r) {
+    if (!raw) {
+      setError("กรุณาใส่เบอร์โทรศัพท์");
+      return;
+    }
+    if (!analyzeThaiPhone(raw)) {
       setError("กรุณาใส่เบอร์โทรศัพท์ให้ถูกต้อง");
       setSubmittedPhone(null);
       return;
     }
-
     setError("");
+    setAi({ status: "loading" });
     setSubmittedPhone(raw);
   }
 
-  function toggleSaved() {
-    if (!baseline || !session) return;
-
-    if (savedId) {
-      removeReading(savedId);
-      setSavedId(null);
-      return;
-    }
-
-    const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
-    setSavedId(id);
+  function reset() {
+    setSubmittedPhone(null);
+    setPhone("");
+    setAi({ status: "loading" });
   }
 
-  return (
-    <main className={cn("min-h-screen", isPastel ? "bg-transparent" : isRainbow ? "bg-transparent" : "bg-white")}>
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 pt-4 pb-2">
-        <Link href="/" className="flex items-center gap-2">
-          <BrandLogo size={24} inverted={isPastel || isRainbow} />
-        </Link>
-      </header>
+  async function share() {
+    const url = window.location.href;
+    const text = session?.summary ?? "";
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "ผลวิเคราะห์เบอร์โทรศัพท์", text, url });
+        return;
+      } catch {
+        // cancelled — fall back to copying the link
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.show(TOAST_COPIED);
+    } catch {
+      toast.show("ไม่สามารถคัดลอกลิงก์ได้");
+    }
+  }
 
-      <div className="px-5 pb-10 pt-6">
-        <header className="space-y-2">
-          <h1 className={cn("font-serif text-2xl font-semibold", isPastel || isRainbow ? "text-white" : "text-gray-900")}>วิเคราะห์เบอร์โทรศัพท์</h1>
-          <p className={cn("text-sm", isPastel || isRainbow ? "text-white/70" : "text-gray-500")}>กรอกเบอร์ แล้วดูคะแนน/แนวโน้มงาน-เงิน-ความสัมพันธ์</p>
-        </header>
-
-        <div className={cn("mt-6 rounded-[24px] border p-5 shadow-sm", isPastel ? "bg-white/20 backdrop-blur border-white/30" : isRainbow ? "bg-[#1a1a2e]/80 border-[rgba(255,0,255,0.2)]" : "border-gray-200 bg-white")}>
-          <h2 className={cn("text-lg font-semibold", isPastel || isRainbow ? "text-white" : "text-gray-900")}>คำนวณ</h2>
-          <p className={cn("mt-1 text-sm", isPastel || isRainbow ? "text-white/70" : "text-gray-500")}>ใส่เบอร์โทรศัพท์ (ระบบจะจัดรูปแบบให้เอง)</p>
-
-          <form onSubmit={onSubmit} className="mt-5 space-y-4">
+  if (!baseline || !session) {
+    return (
+      <PageContainer variant="narrow">
+        <AppBar
+          label="เลขศาสตร์"
+          title="วิเคราะห์เบอร์โทรศัพท์"
+          caption="กรอกเบอร์ แล้วดูคะแนนและแนวโน้มงาน เงิน ความสัมพันธ์"
+          backHref="/explore"
+        />
+        <Card className="mt-4">
+          <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <div className="space-y-2">
-              <label className={cn("text-sm font-medium", isPastel || isRainbow ? "text-white/80" : "text-gray-600")}>เบอร์โทรศัพท์</label>
-              <input
+              <Label htmlFor="numerology-phone">เบอร์โทรศัพท์</Label>
+              <Input
+                id="numerology-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 inputMode="tel"
+                autoComplete="tel"
                 placeholder="เช่น 0812345678"
-                className={cn(
-                  "w-full rounded-xl border px-4 py-3 text-sm outline-none transition",
-                  isPastel ? "bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:border-white/60" :
-                  isRainbow ? "bg-[#1a1a2e]/80 border-[rgba(255,0,255,0.3)] text-white placeholder:text-white/40 focus:border-[#ff00ff]" :
-                  "border-gray-200 bg-white text-gray-900 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                )}
-                required
+                aria-invalid={error ? true : undefined}
               />
-              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              <p className="text-[13px] text-fg-muted">ใส่ได้ทั้งแบบมีขีดหรือเว้นวรรค ระบบจัดรูปแบบให้เอง</p>
+              {error ? <InlineError message={error} /> : null}
             </div>
-
-            <button
-              type="submit"
-              className={cn(
-                "w-full h-12 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98]",
-                isPastel ? "bg-white/30 backdrop-blur text-white border border-white/50 hover:bg-white/50" :
-                isRainbow ? "bg-gradient-to-r from-[#ff00ff] to-[#00ffff] text-white shadow-[rgba(255,0,255,0.3)]" :
-                "bg-violet-600 text-white shadow-violet-200 hover:bg-violet-700 hover:shadow-xl"
-              )}
-            >
-              วิเคราะห์
-            </button>
+            <Button type="submit" size="lg" className="w-full">
+              <Hash strokeWidth={1.5} />
+              วิเคราะห์เบอร์
+            </Button>
           </form>
-        </div>
+        </Card>
+        <StepsCard label="วิธีดู" title="วิเคราะห์เบอร์ใน 3 ขั้นตอน" steps={HOW_IT_WORKS_STEPS} />
+        <ExploreMore />
+        <Toast message={toast.message} />
+      </PageContainer>
+    );
+  }
 
-        {baseline && session && (
-          <section className="mt-6 space-y-4">
-            <div className={cn("rounded-[24px] border p-5 shadow-sm", isPastel ? "bg-white/20 backdrop-blur border-white/30" : isRainbow ? "bg-[#1a1a2e]/80 border-[rgba(255,0,255,0.2)]" : "border-gray-200 bg-white")}>
-              <h2 className={cn("text-lg font-semibold", isPastel || isRainbow ? "text-white" : "text-gray-900")}>สรุปคะแนน</h2>
-              <p className={cn("mt-2 text-sm", isPastel || isRainbow ? "text-white/80" : "text-gray-600")}>
-                คะแนน {" "}
-                <span className={cn("font-semibold", isPastel || isRainbow ? "text-white" : "text-violet-600")}>{baseline.score}/99</span> ({baseline.tier}) •
-                เลขรวม {baseline.total} • เลขราก {baseline.root}
-              </p>
+  const fallbackBlocks = session.blocks.filter((b) => b.id !== "num-summary");
+
+  return (
+    <>
+      <ReadingResultShell
+        label="เลขศาสตร์"
+        title="พลังเบอร์ของคุณ"
+        caption={`${baseline.normalizedPhone} · ${readAt}`}
+        backHref="/explore"
+        computed={<ScoreCard baseline={baseline} summary={session.summary} />}
+        aiLoading={ai.status === "loading"}
+        ai={
+          ai.status === "ai" ? (
+            <AiCards summary={ai.summary} cardStructure={ai.cardStructure} />
+          ) : (
+            <div>
+              <SectionHeader label="ความหมายตามตำรา" title="แนวโน้มจากเลขราก" />
+              <ReadingBlocks className="mt-3" blocks={fallbackBlocks} />
             </div>
-
-            <div className={cn("rounded-[24px] border p-5 shadow-sm", isPastel ? "bg-white/20 backdrop-blur border-white/30" : isRainbow ? "bg-[#1a1a2e]/80 border-[rgba(255,0,255,0.2)]" : "border-gray-200 bg-white")}>
-              <h2 className={cn("text-lg font-semibold", isPastel || isRainbow ? "text-white" : "text-gray-900")}>คำทำนาย</h2>
-              {!aiReading ? (
-                <p className={cn("mt-2 text-sm", isPastel || isRainbow ? "text-white/50" : "text-gray-400")}>กำลังสรุปคำทำนาย...</p>
-              ) : (
-                <>
-                  <p className={cn("mt-2 whitespace-pre-line text-sm leading-relaxed", isPastel || isRainbow ? "text-white/80" : "text-gray-600")}>{aiReading.summary}</p>
-                  <div className={cn("mt-4 rounded-xl border p-4", isPastel ? "border-white/20 bg-white/10" : isRainbow ? "border-[rgba(255,0,255,0.2)] bg-[rgba(255,0,255,0.05)]" : "border-violet-100 bg-violet-50/50")}>
-                    <p className={cn("text-xs font-medium", isPastel || isRainbow ? "text-white" : "text-violet-600")}>รายละเอียด</p>
-                    <p className={cn("mt-2 whitespace-pre-line text-sm leading-relaxed", isPastel || isRainbow ? "text-white/80" : "text-gray-600")}>{aiReading.cardStructure}</p>
-                  </div>
-
-                  <div className="mt-6 flex flex-col gap-3">
-                    <button
-                      className={cn(
-                        "w-full h-12 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2",
-                        isPastel ? "bg-white/30 backdrop-blur text-white border border-white/50 hover:bg-white/50" :
-                        isRainbow ? "bg-gradient-to-r from-[#ff00ff] to-[#00ffff] text-white shadow-[rgba(255,0,255,0.3)]" :
-                        "bg-violet-600 text-white shadow-violet-200 hover:bg-violet-700 hover:shadow-xl"
-                      )}
-                      onClick={() => {
-                        if (navigator.share) {
-                          navigator.share({
-                            title: "ผลวิเคราะห์เบอร์โทรศัพท์",
-                            text: aiReading.summary,
-                            url: window.location.href,
-                          });
-                        } else {
-                          navigator.clipboard.writeText(window.location.href);
-                          alert("คัดลอกลิงก์แล้ว!");
-                        }
-                      }}
-                    >
-                      <Share2 className="w-4 h-4" />
-                      แชร์ผลลัพธ์
-                    </button>
-                    <button
-                      className={cn(
-                        "w-full h-12 rounded-xl font-medium transition-all active:scale-[0.98] flex items-center justify-center gap-2",
-                        isPastel ? "bg-white/10 border border-white/20 text-white hover:bg-white/20" :
-                        isRainbow ? "bg-[#1a1a2e] border border-[rgba(255,0,255,0.3)] text-white hover:border-[rgba(255,0,255,0.5)]" :
-                        "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                      )}
-                      onClick={() => {
-                        setSubmittedPhone(null);
-                        setPhone("");
-                      }}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      วิเคราะห์เบอร์อื่น
-                    </button>
-                  </div>
-                </>
-              )}
+          )
+        }
+        cta={
+          <>
+            <LineCtaButton
+              label="ปรึกษาหมอดูทาง LINE"
+              text={`อยากปรึกษาเรื่องเบอร์ ${baseline.normalizedPhone} (คะแนน ${baseline.score}/99)`}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={share}>
+                <Share2 strokeWidth={1.5} />
+                แชร์ผลลัพธ์
+              </Button>
+              <Button variant="ghost" onClick={reset}>
+                <RefreshCw strokeWidth={1.5} />
+                วิเคราะห์เบอร์อื่น
+              </Button>
             </div>
-          </section>
-        )}
-      </div>
-    </main>
+          </>
+        }
+        trust={{
+          computedFrom: "ผลรวมและเลขรากของเบอร์ตามหลักเลขศาสตร์",
+          confidence: "ปานกลาง",
+          aiUsed: ai.status === "ai",
+        }}
+      />
+      <Toast message={toast.message} />
+    </>
   );
 }

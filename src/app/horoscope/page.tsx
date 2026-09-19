@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  CalendarDays,
+  CalendarRange,
+  ChevronRight,
+  Clock,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 import { AppBar } from "@/components/nav/AppBar";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { FeatureMenu } from "@/components/nav/FeatureMenu";
+import { Card } from "@/components/ui/Card";
 import { FAB } from "@/components/ui/FAB";
+import { LineCtaButton } from "@/components/ui/LineCtaButton";
+import { PageContainer } from "@/components/ui/PageContainer";
 
 export const metadata: Metadata = {
   title: "ดูดวงรายวัน รายสัปดาห์ รายเดือน — ดวงชะตาตามราศี",
@@ -18,98 +27,98 @@ export const metadata: Metadata = {
   },
 };
 
-const periods = [
+type PeriodCard = {
+  period: "daily" | "weekly" | "monthly";
+  title: string;
+  description: string;
+  eta: string;
+  icon: LucideIcon;
+};
+
+const periods: ReadonlyArray<PeriodCard> = [
   {
     period: "daily",
     title: "ดูดวงรายวัน",
     description: "ดูดวงวันนี้ โฟกัสพลังงานและโอกาสในแต่ละวัน",
-    eta: "2 นาที",
-    icon: "📅",
-    credits: 1,
+    eta: "อ่านจบใน 2 นาที",
+    icon: Sun,
   },
   {
     period: "weekly",
     title: "ดูดวงรายสัปดาห์",
     description: "ดูดวงสัปดาห์นี้ วางแผนและเตรียมตัวล่วงหน้า",
-    eta: "3 นาที",
-    icon: "📆",
-    credits: 2,
+    eta: "อ่านจบใน 3 นาที",
+    icon: CalendarRange,
   },
   {
     period: "monthly",
     title: "ดูดวงรายเดือน",
     description: "ดูดวงเดือนนี้ เห็นภาพรวมและแนวโน้มระยะยาว",
-    eta: "5 นาที",
-    icon: "🗓️",
-    credits: 3,
+    eta: "อ่านจบใน 5 นาที",
+    icon: CalendarDays,
   },
 ];
 
+const LINE_LABEL = "เพิ่มเพื่อน LINE";
+
 export default function HoroscopePage() {
   return (
-    <main className="mx-auto w-full max-w-lg">
-      {/* Header */}
-      <header className="px-5 pt-7 pb-3">
-        <AppBar title={<span className="sr-only">ดูดวงตามราศี</span>} className="px-0 pt-0 pb-0" />
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-fg">ดูดวงตามราศี</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          เลือกช่วงเวลาที่คุณต้องการดูดวง รับคำทำนายที่ชัดเจนและใช้ได้จริง
-        </p>
-      </header>
+    <>
+      <PageContainer
+        variant="wide"
+        aside={
+          /* md+: pad the rail so its heading starts level with the AppBar eyebrow (pt-6)
+             instead of at y=0, where the Thai tone marks clip against the viewport top. */
+          <div className="md:pt-6">
+            <FeatureMenu />
+            {/* <md: the LINE CTA sits in the flow after the grid so nothing floats over a card. */}
+            <div className="mt-6 md:hidden" data-testid="horoscope-line-inline">
+              <p className="mb-3 text-center text-[13px] leading-relaxed text-fg-muted">
+                มีคำถามเพิ่มเติม? คุยกับหมอดูได้โดยตรงทาง LINE
+              </p>
+              <LineCtaButton label={LINE_LABEL} />
+            </div>
+          </div>
+        }
+      >
+        <AppBar
+          label="โหราศาสตร์ราศี"
+          title="ดูดวงตามราศี"
+          caption="เลือกช่วงเวลาที่ต้องการ แล้วเลือกราศีของคุณในขั้นถัดไป"
+          largeTitle
+        />
 
-      <div className="px-5 pb-6">
-        {/* Period cards */}
-        <div className="mt-4 flex flex-col gap-4">
-          {periods.map((item) => (
-            <Link key={item.period} href={`/horoscope/${item.period}`} className="block">
-              <Card className="p-5 bg-bg">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-surface text-2xl">
-                    {item.icon}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-semibold text-fg">{item.title}</h3>
-                    <div className="mt-0.5 flex items-center gap-3 text-xs text-fg-subtle">
-                      <span className="flex items-center gap-1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        {item.eta}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" />
-                        </svg>
-                        {item.credits} เครดิต
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-fg-muted">{item.description}</p>
-              </Card>
-            </Link>
-          ))}
+        <div className="mt-4 flex flex-col gap-3" data-testid="horoscope-periods">
+          {periods.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.period}
+                href={`/horoscope/${item.period}`}
+                className="block rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <Card interactive className="flex items-start gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-card border border-line-faint bg-sunk">
+                    <Icon className="h-6 w-6 text-gold" strokeWidth={1.5} aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-lg font-semibold text-fg">{item.title}</span>
+                    <span className="mt-1 block text-sm leading-relaxed text-fg-muted">{item.description}</span>
+                    <span className="mt-2 flex items-center gap-1.5 text-[13px] text-fg-muted">
+                      <Clock className="h-3.5 w-3.5 text-gold" strokeWidth={1.5} aria-hidden="true" />
+                      {item.eta}
+                    </span>
+                  </span>
+                  <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-gold" strokeWidth={1.5} aria-hidden="true" />
+                </Card>
+              </Link>
+            );
+          })}
         </div>
+      </PageContainer>
 
-        {/* Sticky CTA */}
-        <div className="sticky bottom-20 z-30 mt-6">
-          <Link href="/horoscope/daily" className="block">
-            <Button className="w-full" size="lg">
-              เริ่มดูดวงรายวัน
-            </Button>
-          </Link>
-        </div>
-
-        {/* Feature Menu */}
-        <div className="mt-8">
-          <FeatureMenu />
-        </div>
-      </div>
-
-      {/* FAB */}
-      <FAB label="เพิ่มเพื่อน LINE" />
-    </main>
+      {/* md+: floating button only where it clears the two-column layout. */}
+      <FAB label={LINE_LABEL} className="hidden md:flex" />
+    </>
   );
 }

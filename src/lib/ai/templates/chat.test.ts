@@ -9,7 +9,7 @@
  * - Focus on user's control and agency
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { buildChatPrompt } from './chat';
 import type { ChatPromptParams, ChatTurn } from '../types';
 import type { DrawnCard } from '@/lib/tarot/types';
@@ -72,7 +72,7 @@ describe('buildChatPrompt', () => {
 
     // Verify prompt contains all required sections
     expect(prompt).toContain('ที่ปรึกษาเชิงจิตใจ'); // Role
-    expect(prompt).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(prompt).toContain('ตัวอย่างการตีความที่ดี'); // Few-shot examples
     expect(prompt).toContain('คำแนะนำการตอบคำถามในโหมดแชท'); // Instructions
     expect(prompt).toContain('Should I change careers?'); // Base question
@@ -145,7 +145,8 @@ describe('buildChatPrompt', () => {
     const prompt = buildChatPrompt(params);
 
     // Should NOT include early turns
-    expect(prompt).not.toContain('Turn 1');
+    // Word boundary: 'Turn 10' (kept) contains the substring 'Turn 1'
+    expect(prompt).not.toMatch(/Turn 1\b/);
     expect(prompt).not.toContain('Turn 2');
     expect(prompt).not.toContain('Turn 3');
     expect(prompt).not.toContain('Turn 4');
@@ -319,7 +320,7 @@ describe('buildChatPrompt', () => {
     const prompt = buildChatPrompt(params);
 
     // Verify Thai cultural elements
-    expect(prompt).toContain('กฎแห่งกรรม'); // Karma
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Karma
     expect(prompt).toContain('บุญ'); // Merit
     expect(prompt).toContain('สติ'); // Mindfulness
   });

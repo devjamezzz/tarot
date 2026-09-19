@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { AppBar } from "@/components/nav/AppBar";
 import { ProfileClient } from "@/app/profile/ProfileClient";
 
-// Server component: keep localStorage + DOM mutations inside the client component.
+export const metadata: Metadata = {
+  title: "บัญชีของฉัน",
+  robots: { index: false, follow: false },
+};
+
+// Server component: session state stays inside the client component.
 export default async function ProfilePage() {
   let version: string | undefined;
   try {
@@ -12,9 +19,9 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg">
-      <AppBar title="Profile" largeTitle />
+    <PageContainer variant="narrow">
+      <AppBar label="บัญชี" title="บัญชีของฉัน" backHref="/settings" largeTitle />
       <ProfileClient version={version} />
-    </main>
+    </PageContainer>
   );
 }

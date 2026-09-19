@@ -4,7 +4,7 @@
  * Run with: npm test (once Jest is configured)
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { buildTarotPrompt } from './tarot';
 import type { TarotPromptParams } from '../types';
 import type { DrawnCard } from '@/lib/tarot/types';
@@ -67,7 +67,7 @@ describe('buildTarotPrompt', () => {
 
     // Verify prompt contains all required sections
     expect(prompt).toContain('ผู้อ่านไพ่ทาโรต์'); // Role
-    expect(prompt).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(prompt).toContain('ตัวอย่างการตีความที่ดี'); // Few-shot examples
     expect(prompt).toContain('คำแนะนำการตีความไพ่'); // Instructions
     expect(prompt).toContain('What should I focus on today?'); // User question
@@ -168,7 +168,7 @@ describe('buildTarotPrompt', () => {
 
     // Verify card relationship instructions
     expect(prompt).toContain('ความสัมพันธ์ระหว่างไพ่');
-    expect(prompt).toContain('ไพ่แต่ละใบเชื่อมโยงกัน');
+    expect(prompt).toContain('เชื่อมโยงไพ่แต่ละใบเข้าหากัน');
   });
 
   it('should include symbolism and archetypal meaning instructions', () => {
@@ -210,7 +210,7 @@ describe('buildTarotPrompt', () => {
 
     // Verify structure includes warnings section
     expect(prompt).toContain('จุดที่ควรระวัง');
-    expect(prompt).toContain('ความเสี่ยงหรืออุปสรรคที่เฉพาะเจาะจง');
+    expect(prompt).toContain('"risks": ["จุดควรระวัง 1 พร้อมสัญญาณเตือน", "อุปสรรค 2 และวิธีรับมือ", "ความเสี่ยง 3 ถ้ามี"]');
   });
 
   it('should include 10-card Celtic Cross specific instructions', () => {
@@ -255,7 +255,7 @@ describe('buildTarotPrompt', () => {
     const prompt = buildTarotPrompt(params);
 
     // Verify Thai cultural elements
-    expect(prompt).toContain('กฎแห่งกรรม'); // Karma
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Karma
     expect(prompt).toContain('บุญ'); // Merit
     expect(prompt).toContain('สติ'); // Mindfulness
     expect(prompt).toContain('ดวงชะตา'); // Destiny

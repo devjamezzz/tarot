@@ -1,6 +1,7 @@
 // Unit tests for Chinese Zodiac calculations
 // Feature: popular-fortune-features
 
+import { describe, it, expect } from 'vitest';
 import {
   calculateChineseZodiac,
   calculateChineseElement,

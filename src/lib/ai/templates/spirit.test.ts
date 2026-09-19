@@ -2,7 +2,7 @@
  * Unit tests for Spirit Card Prompt Builder
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { buildSpiritPrompt } from './spirit';
 import type { SpiritPromptParams } from '../types';
 import type { TarotCard } from '@/lib/tarot/types';
@@ -43,7 +43,7 @@ describe('buildSpiritPrompt', () => {
 
     // Verify prompt contains all required sections
     expect(prompt).toContain('ผู้เชี่ยวชาญด้านไพ่ทาโรต์และเลขศาสตร์'); // Role
-    expect(prompt).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(prompt).toContain('เลขมงคล'); // Numerology beliefs
     expect(prompt).toContain('ตัวอย่างการตีความที่ดี'); // Few-shot examples
     expect(prompt).toContain('คำแนะนำการตีความไพ่ประจำตัว'); // Instructions
@@ -197,11 +197,11 @@ describe('buildSpiritPrompt', () => {
     const prompt = buildSpiritPrompt(params);
 
     // Verify Thai cultural elements
-    expect(prompt).toContain('กฎแห่งกรรม'); // Karma
+    expect(prompt).toContain('หลักกรรม (Law of Karma)'); // Karma
     expect(prompt).toContain('บุญ'); // Merit
     expect(prompt).toContain('สติ'); // Mindfulness
     expect(prompt).toContain('ดวงชะตา'); // Destiny
-    expect(prompt).toContain('เลข 9 เป็นเลขมงคลสูงสุด'); // Numerology
+    expect(prompt).toContain('เลข 9 (เก้า): เลขมงคลสูงสุด'); // Numerology
   });
 
   it('should format user data correctly', () => {
@@ -262,7 +262,7 @@ describe('buildSpiritPrompt', () => {
     const prompt = buildSpiritPrompt(params);
 
     // Verify JSON structure requirements
-    expect(prompt).toContain('ตอบเป็น JSON เท่านั้น');
+    expect(prompt).toContain('ตอบกลับเป็น JSON ที่ถูกต้องตามโครงสร้างนี้เท่านั้น');
     expect(prompt).toContain('summary');
     expect(prompt).toContain('cardStructure');
     expect(prompt).toContain('ภาพรวมสถานการณ์');

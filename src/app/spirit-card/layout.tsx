@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ไพ่จิตวิญญาณ Oracle Card — รับข้อความจากจักรวาล",
+  title: "ไพ่จิตวิญญาณ — รับข้อความจากจักรวาลผ่านวันเกิด",
   description:
-    "เปิดไพ่ Oracle Card กับ REFFORTUNE รับข้อความจากจักรวาลและคำแนะนำเชิงลึก เข้าใจตัวเองมากขึ้น ใช้ได้จริงในชีวิตประจำวัน",
+    "เปิดไพ่จิตวิญญาณกับ REFFORTUNE รับข้อความจากจักรวาลและคำแนะนำเชิงลึกจากวันเกิดของคุณ เข้าใจตัวเองมากขึ้น ใช้ได้จริงในชีวิตประจำวัน",
   alternates: { canonical: "/spirit-card" },
   openGraph: {
-    title: "ไพ่จิตวิญญาณ Oracle Card — REFFORTUNE",
-    description: "เปิดไพ่ Oracle Card รับข้อความจากจักรวาลและคำแนะนำเชิงลึก",
+    title: "ไพ่จิตวิญญาณ — REFFORTUNE",
+    description: "เปิดไพ่จิตวิญญาณ รับข้อความจากจักรวาลและคำแนะนำเชิงลึกจากวันเกิดของคุณ",
     url: "/spirit-card",
   },
 };

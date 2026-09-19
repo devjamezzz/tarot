@@ -1,75 +1,88 @@
 import type { Metadata } from "next";
+import { MessageCircle } from "lucide-react";
+import { DEFAULT_PACKAGES } from "@/lib/packages/defaults";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { AppBar } from "@/components/nav/AppBar";
+import { Card } from "@/components/ui/Card";
+import { LineCtaButton } from "@/components/ui/LineCtaButton";
+import { PackageCard } from "@/components/pricing/PackageCard";
+import { ConfidenceBar } from "@/components/pricing/ConfidenceBar";
+import { BookingSteps } from "@/components/pricing/BookingSteps";
+import { cheapestPriceBaht } from "@/components/pricing/packageDetails";
+import { getPricingContextLine } from "@/components/pricing/pricingContext";
+
+const cheapest = cheapestPriceBaht(DEFAULT_PACKAGES);
+const startingAt = cheapest === null ? "" : ` เริ่มต้น ${cheapest} บาท`;
 
 export const metadata: Metadata = {
   title: "ราคาบริการดูดวง — แพ็กเกจดูดวงออนไลน์",
-  description:
-    "ราคาบริการดูดวงกับ REFFORTUNE ทั้งแบบสนทนาและพิมพ์ตอบ เริ่มต้น 45 บาท พร้อมแพ็กคำถามสุดคุ้ม เลือกแพ็กที่เหมาะกับคุณ",
+  description: `ราคาบริการดูดวงกับ REFFORTUNE ทั้งแบบคุยสายและพิมพ์ตอบ${startingAt} จ่ายครั้งเดียว ไม่มีรายเดือน เลือกแพ็กที่เหมาะกับคุณ`,
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "ราคาบริการดูดวง — REFFORTUNE",
-    description: "เปรียบเทียบแพ็กเกจดูดวงออนไลน์ เริ่มต้น 45 บาท/คำถาม",
+    description: `เปรียบเทียบแพ็กเกจดูดวงออนไลน์${startingAt} จองผ่าน LINE`,
     url: "/pricing",
   },
 };
 
-const plans = [
-  {
-    name: "คำถามผ่านการสนทนา",
-    price: "15 นาที : 189 บาท",
-    detail: "เหมาะสำหรับผู้ที่มีหลายคำถาม หรือต้องการพื้นที่ปลอดภัยในการพูดคุยและปลดปล่อย",
-  },
-  {
-    name: "คำถามผ่านการสนทนา",
-    price: "30 นาที : 359 บาท",
-    detail: "เจาะลึกประเด็นได้มากขึ้นต่อเนื่องในเซสชันเดียว",
-  },
-  {
-    name: "คำถามผ่านการพิมพ์",
-    price: "45 บาท / คำถาม",
-    detail: "รับคำตอบที่ละเอียดและตรงประเด็น สามารถกลับมาทบทวนได้ทุกเมื่อ",
-  },
-  {
-    name: "แพ็กคำถามผ่านการพิมพ์",
-    price: "3 คำถาม 125 บาท • 5 คำถาม 195 บาท",
-    detail: "คุ้มค่าสำหรับผู้ที่ต้องการถามต่อเนื่องหลายประเด็น",
-  },
-  {
-    name: "คำถามเปรียบเทียบ",
-    price: "85 บาท",
-    detail: 'เช่น "เส้นทาง A กับ B จะนำพาฉันไปสู่อะไร?"',
-  },
-];
+type PricingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function PricingPage() {
+const STAGGER_MS = 30;
+
+export default async function PricingPage({ searchParams }: PricingPageProps) {
+  const params = await searchParams;
+  const contextLine = getPricingContextLine(params.source, params.reason);
+
   return (
-    <main className="mx-auto w-full max-w-lg px-5 py-6">
-      <h1 className="text-2xl font-bold text-fg">แพ็กเกจดูดวงออนไลน์กับเรฟ</h1>
-      <p className="mt-1 text-sm text-fg-muted">อัปเดตตามหน้าแพ็กเกจล่าสุดจาก REFFORTUNE</p>
+    <main data-testid="pricing-page">
+      <PageContainer variant="narrow">
+        <AppBar
+          label="แพ็กเกจ"
+          title="แพ็กเกจดูดวงกับหมอดู"
+          caption="ราคาเดียวกับหน้าแรก · จองผ่าน LINE"
+          backHref="/"
+        />
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {plans.map((plan, i) => (
-          <article
-            key={`${plan.name}-${i}`}
-            className="rounded-2xl border border-border bg-surface p-5"
+        {contextLine ? (
+          <Card
+            variant="sunk"
+            role="status"
+            data-testid="pricing-context"
+            className="mb-4 flex items-start gap-3 border-gold/40"
           >
-            <p className="text-sm font-medium text-accent">{plan.name}</p>
-            <h2 className="mt-1 text-lg font-semibold text-fg">{plan.price}</h2>
-            <p className="mt-2 text-sm text-fg-muted">{plan.detail}</p>
-          </article>
-        ))}
-      </div>
+            <MessageCircle className="mt-0.5 size-5 shrink-0 text-gold" strokeWidth={1.5} aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-fg">{contextLine}</p>
+          </Card>
+        ) : null}
 
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
-        <p className="text-sm text-fg-muted">ดูแพ็กเกจเต็มและอัปเดตล่าสุด</p>
-        <a
-          href="https://www.reffortune.com/packages.html"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex rounded-2xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink transition hover:bg-accent-hover"
-        >
-          เปิดหน้าแพ็กเกจ REFFORTUNE
-        </a>
-      </div>
+        <ConfidenceBar />
+
+        <ul className="mt-5 space-y-4" aria-label="รายการแพ็กเกจ">
+          {DEFAULT_PACKAGES.map((pkg, index) => (
+            <li key={pkg.id}>
+              <PackageCard pkg={pkg} style={{ animationDelay: `${index * STAGGER_MS}ms` }} />
+            </li>
+          ))}
+        </ul>
+
+        <BookingSteps className="mt-6" />
+
+        <Card className="mt-6 space-y-3" data-testid="pricing-consult">
+          <p className="eyebrow">ยังไม่แน่ใจ</p>
+          <h2 className="font-display text-[22px] font-semibold leading-snug text-fg">
+            ให้หมอดูช่วยเลือกแพ็กเกจที่เหมาะกับคุณ
+          </h2>
+          <p className="text-sm leading-relaxed text-fg-muted">
+            ทักมาเล่าสั้นๆ ว่าอยากถามเรื่องอะไร หมอดูจะแนะนำแพ็กเกจที่คุ้มที่สุดให้ก่อนตัดสินใจ
+          </p>
+          <LineCtaButton
+            label="ปรึกษาก่อนทาง LINE"
+            text="สวัสดี อยากปรึกษาว่าควรเลือกแพ็กเกจดูดวงแบบไหนดี"
+          />
+        </Card>
+      </PageContainer>
     </main>
   );
 }

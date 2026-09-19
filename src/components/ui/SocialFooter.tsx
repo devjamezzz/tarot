@@ -1,78 +1,75 @@
 "use client";
 
 import Link from "next/link";
-import { Facebook, Instagram, MessageCircle, Video } from "lucide-react";
-import { useTheme } from "@/lib/theme/ThemeProvider";
-import { cn } from "@/lib/cn";
+import { Facebook, Instagram, MessageCircle, Video, type LucideIcon } from "lucide-react";
+import { LINE_OA_URL } from "@/lib/site";
 
-const socials = [
+interface SocialLink {
+  name: string;
+  ariaLabel: string;
+  url: string;
+  icon: LucideIcon;
+}
+
+const socials: ReadonlyArray<SocialLink> = [
   {
     name: "Facebook",
-    label: "ดูดวงกับเรฟ",
+    ariaLabel: "เฟซบุ๊ก ดูดวงกับเรฟ",
     url: "https://www.facebook.com/reffortune",
     icon: Facebook,
   },
   {
-    name: "Line OA",
-    label: "@reffortune",
-    url: "https://line.me/R/ti/p/@reffortune",
+    name: "LINE",
+    ariaLabel: "LINE Official Account @reffortune",
+    url: LINE_OA_URL,
     icon: MessageCircle,
   },
   {
     name: "Instagram",
-    label: "Refmade",
+    ariaLabel: "อินสตาแกรม Refmade",
     url: "https://instagram.com/reffortune",
     icon: Instagram,
   },
   {
     name: "TikTok",
-    label: "Refmade",
+    ariaLabel: "ติ๊กต็อก Refmade",
     url: "https://tiktok.com/@reffortune",
     icon: Video,
   },
 ];
 
 export function SocialFooter() {
-  const { theme } = useTheme();
-  const isPastel = theme === "pastel";
-  const isRainbow = theme === "rainbow";
-
   return (
     <footer className="px-5 pb-20 pt-8 text-center">
-      <div className={cn("h-px w-full mb-8", isPastel ? "bg-white/20" : isRainbow ? "bg-[rgba(255,0,255,0.2)]" : "bg-gray-100")} />
-      
-      <h3 className={cn("text-sm font-medium mb-4", isPastel || isRainbow ? "text-white/80" : "text-gray-500")}>
-        ติดตามเราได้ที่
-      </h3>
-      
-      <div className="flex justify-center gap-4 mb-6">
+      <div className="mb-8 h-px w-full bg-line-faint" />
+
+      <h3 className="mb-4 font-sans text-sm font-medium text-fg-muted">ติดตามเราได้ที่</h3>
+
+      <div className="mb-6 flex justify-center gap-4">
         {socials.map((social) => (
           <Link
             key={social.name}
             href={social.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(
-              "p-3 rounded-full transition-all active:scale-95 flex items-center justify-center",
-              isPastel 
-                ? "bg-white/20 backdrop-blur hover:bg-white/30 text-white border border-white/20" 
-                : isRainbow
-                  ? "bg-[#1a1a2e] hover:bg-[#252545] text-white border border-[rgba(255,0,255,0.2)] shadow-sm"
-                  : "bg-white hover:bg-gray-50 text-gray-600 border border-gray-100 shadow-sm"
-            )}
-            aria-label={social.name}
+            aria-label={social.ariaLabel}
+            className="flex items-center justify-center rounded-pill border border-line bg-surface p-3 text-gold transition-colors hover:bg-sunk active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           >
             <social.icon size={20} strokeWidth={1.5} />
           </Link>
         ))}
       </div>
 
-      <div className={cn("text-xs space-y-2", isPastel || isRainbow ? "text-white/60" : "text-gray-400")}>
+      <div className="space-y-2 text-xs text-fg-subtle">
         <p>© 2026 REFFORTUNE</p>
         <div className="flex justify-center gap-3">
-            <Link href="/terms" className="hover:underline opacity-80 hover:opacity-100">ข้อกำหนด</Link>
-            <span className="opacity-50">•</span>
-            <Link href="/privacy" className="hover:underline opacity-80 hover:opacity-100">นโยบายความเป็นส่วนตัว</Link>
+          <Link href="/terms" className="hover:text-fg-muted hover:underline">
+            ข้อกำหนดการใช้งาน
+          </Link>
+          <span aria-hidden="true">•</span>
+          <Link href="/privacy" className="hover:text-fg-muted hover:underline">
+            นโยบายความเป็นส่วนตัว
+          </Link>
         </div>
       </div>
     </footer>

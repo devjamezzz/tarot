@@ -3,6 +3,7 @@
  * Feature: popular-fortune-features
  */
 
+import { describe, it, expect } from 'vitest';
 import {
   isValidThaiName,
   calculateNameScore,

@@ -2,7 +2,7 @@
  * Unit tests for base prompt template system
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { PromptBuilder, buildBasePrompt } from './base';
 import type { FewShotExample, PromptSection } from '@/lib/ai/types';
 

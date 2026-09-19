@@ -2,7 +2,7 @@
  * Unit tests for numerology prompt builder
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { buildNumerologyPrompt } from './numerology';
 import type { NumerologyPromptParams } from '@/lib/ai/types';
 
@@ -31,7 +31,7 @@ describe('buildNumerologyPrompt', () => {
     expect(prompt).toContain('ผู้เชี่ยวชาญด้านเลขศาสตร์ไทย');
     
     // Check for cultural context
-    expect(prompt).toContain('กฎแห่งกรรม');
+    expect(prompt).toContain('หลักกรรม (Law of Karma)');
     
     // Check for few-shot examples
     expect(prompt).toContain('ตัวอย่างการตีความที่ดี');
@@ -108,7 +108,7 @@ describe('buildNumerologyPrompt', () => {
     const prompt = buildNumerologyPrompt(baseParams);
     
     const roleIndex = prompt.indexOf('ผู้เชี่ยวชาญด้านเลขศาสตร์ไทย');
-    const culturalIndex = prompt.indexOf('กฎแห่งกรรม');
+    const culturalIndex = prompt.indexOf('หลักกรรม (Law of Karma)');
     const examplesIndex = prompt.indexOf('ตัวอย่างการตีความที่ดี');
     const instructionsIndex = prompt.indexOf('คำแนะนำการวิเคราะห์เบอร์โทรศัพท์');
     const userDataIndex = prompt.indexOf('ข้อมูลการวิเคราะห์เบอร์โทรศัพท์');
