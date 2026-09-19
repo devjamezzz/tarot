@@ -15,8 +15,8 @@ describe('Baseline Horoscope Generation', () => {
       expect(result.finance).toBeTruthy();
       expect(result.health).toBeTruthy();
       expect(result.advice).toBeTruthy();
-      expect(result.luckyNumbers).toHaveLength(expect.any(Number));
-      expect(result.luckyColors).toHaveLength(expect.any(Number));
+      expect(result.luckyNumbers.length).toEqual(expect.any(Number));
+      expect(result.luckyColors.length).toEqual(expect.any(Number));
     });
 
     it('should generate deterministic content for same zodiac and date', () => {

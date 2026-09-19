@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { Heart } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+export interface HeartSaveProps {
+  saved: boolean;
+  onToggle?: () => void;
+  className?: string;
+  label?: string;
+  disabled?: boolean;
+}
 
 export function HeartSave({
   saved,
@@ -9,14 +18,8 @@ export function HeartSave({
   className,
   label,
   disabled,
-}: {
-  saved: boolean;
-  onToggle?: () => void;
-  className?: string;
-  label?: string;
-  disabled?: boolean;
-}) {
-  const aria = label ?? (saved ? "Remove from saved" : "Save");
+}: HeartSaveProps) {
+  const aria = label ?? (saved ? "เอาออกจากที่บันทึก" : "บันทึก");
 
   return (
     <button
@@ -26,26 +29,18 @@ export function HeartSave({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        "inline-flex h-10 w-10 items-center justify-center rounded-full",
-        "border border-border bg-[var(--glass-bg)] text-fg backdrop-blur-xl",
-        "transition-colors hover:bg-surface-2 disabled:opacity-50",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-11 w-11 items-center justify-center rounded-pill",
+        "border border-line bg-surface text-fg",
+        "transition-colors hover:bg-sunk disabled:opacity-50",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         className
       )}
     >
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
+      <Heart
+        className={cn("h-[18px] w-[18px]", saved ? "text-gold" : "text-fg-muted")}
         fill={saved ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={cn(saved ? "text-accent" : "text-fg-muted")}
-      >
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-      </svg>
+        strokeWidth={1.5}
+      />
     </button>
   );
 }

@@ -4,6 +4,7 @@ import { getCreditCost } from "@/lib/monetization/creditCost";
 
 // `getCreditCost` is imported from the shared pure module so the client paywall
 // and the server credit layer stay in lockstep (single source of truth).
+type ReadingOptions = Parameters<typeof getCreditCost>[1];
 
 export interface PaywallContext {
   vertical: ReadingVertical;
@@ -11,7 +12,7 @@ export interface PaywallContext {
   sessionId?: string;
   hasQuestion?: boolean;
   readingType?: ReadingType;
-  readingOptions?: any;
+  readingOptions?: ReadingOptions;
 }
 
 export interface PaywallDecision {
@@ -103,11 +104,11 @@ export function evaluatePaywall(context: PaywallContext): PaywallDecision {
   const highIntent = context.hasQuestion === true || context.vertical === "numerology";
 
   if (freeCount >= 3 && context.stage === "result") {
-    return { show: true, reason: "free_limit_reached", ctaLabel: "ปลดล็อก Premium Reading", ctaHref: `/pricing?source=${context.vertical}&reason=limit`, variant: "hard" };
+    return { show: true, reason: "free_limit_reached", ctaLabel: "ดูแพ็กเกจ", ctaHref: `/pricing?source=${context.vertical}&reason=limit`, variant: "hard" };
   }
 
   if (highIntent && context.stage === "result") {
-    return { show: true, reason: "high_intent_offer", ctaLabel: "ดูแผนรายเดือนเพื่อผลลัพธ์ละเอียดขึ้น", ctaHref: `/pricing?source=${context.vertical}&reason=intent`, variant: "soft" };
+    return { show: true, reason: "high_intent_offer", ctaLabel: "ให้หมอดูอ่านต่อแบบเจาะลึก", ctaHref: `/pricing?source=${context.vertical}&reason=intent`, variant: "soft" };
   }
 
   return { show: false, reason: "eligible_free", ctaLabel: "", ctaHref: "/pricing", variant: "soft" };
@@ -124,7 +125,7 @@ export function evaluatePaywall(context: PaywallContext): PaywallDecision {
  * @param options - Optional parameters (e.g., period for horoscopes)
  * @returns Credit check result with details
  */
-export function checkCredits(readingType: ReadingType, options?: any): CreditCheckResult {
+export function checkCredits(readingType: ReadingType, options?: ReadingOptions): CreditCheckResult {
   const requiredCredits = getCreditCost(readingType, options);
   const currentCredits = getUserCredits();
   const isFreeReading = !hasUsedFreeReading(readingType);
@@ -164,7 +165,7 @@ export function checkCredits(readingType: ReadingType, options?: any): CreditChe
  * @param options - Optional parameters (e.g., period for horoscopes)
  * @returns True if credits were successfully deducted or reading was free
  */
-export function deductCredits(readingType: ReadingType, options?: any): boolean {
+export function deductCredits(readingType: ReadingType, options?: ReadingOptions): boolean {
   const creditCheck = checkCredits(readingType, options);
   
   // If this is a free reading, just mark it as used
@@ -203,6 +204,6 @@ export function deductCredits(readingType: ReadingType, options?: any): boolean 
  * @param options - Optional parameters (e.g., period for horoscopes)
  * @returns Credit cost for the reading
  */
-export function getReadingCreditCost(readingType: ReadingType, options?: any): number {
+export function getReadingCreditCost(readingType: ReadingType, options?: ReadingOptions): number {
   return getCreditCost(readingType, options);
 }

@@ -1,15 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { ChartForm } from "@/components/astrology/ChartForm";
+import { PencilLine } from "lucide-react";
+import { ChartForm, CHART_SYSTEMS } from "@/components/astrology/ChartForm";
 import { ChartResult } from "@/components/astrology/ChartResult";
 import { DateStepper, type DateValue } from "@/components/astrology/DateStepper";
 import { computeNatalChart } from "@/lib/astrology/engine";
 import type { BirthInput, ChartSystem, NatalChart } from "@/lib/astrology/types";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 import { cn } from "@/lib/cn";
 
 type View = "natal" | "transit" | "overlay";
+
+const VIEW_TABS: { id: View; label: string }[] = [
+  { id: "natal", label: "ดวงกำเนิด" },
+  { id: "transit", label: "ดวงจร" },
+  { id: "overlay", label: "ราศีจร (ซ้อน)" },
+];
 
 function todayDate(): DateValue {
   const d = new Date();
@@ -24,12 +33,15 @@ function todayDate(): DateValue {
 
 export function ChartClient() {
   const [birth, setBirth] = React.useState<BirthInput | null>(null);
+  // Last submitted input, kept so "แก้ไข" reopens the form pre-filled.
+  const [draft, setDraft] = React.useState<BirthInput | null>(null);
   const [system, setSystem] = React.useState<ChartSystem>("suriyayatra");
   const [transitDate, setTransitDate] = React.useState<DateValue>(todayDate);
   const [view, setView] = React.useState<View>("overlay");
 
   function handleSubmit(input: BirthInput, sys: ChartSystem) {
     setBirth(input);
+    setDraft(input);
     setSystem(sys);
   }
 
@@ -50,91 +62,68 @@ export function ChartClient() {
 
   if (!charts || !birth) {
     return (
-      <Card className="p-5 bg-bg">
-        <ChartForm onSubmit={handleSubmit} initialSystem={system} />
+      <Card className="mt-4">
+        <ChartForm onSubmit={handleSubmit} initialSystem={system} initial={draft ?? undefined} />
       </Card>
     );
   }
 
+  const asOf = new Date(transitDate.year, transitDate.month - 1, transitDate.day, transitDate.hour, transitDate.minute);
+
   return (
-    <div className="space-y-4">
-      <Card className="p-3 bg-bg">
+    <div className="mt-4 space-y-4">
+      <Card className="p-2 md:p-2">
         <Tabs view={view} onChange={setView} />
       </Card>
 
-      <Card className="p-4 bg-bg space-y-4">
+      <Card className="space-y-4">
         <DateStepper value={transitDate} onChange={setTransitDate} />
-        <ResultDisplay
-          charts={charts}
-          view={view}
-          asOf={new Date(
-            transitDate.year,
-            transitDate.month - 1,
-            transitDate.day,
-            transitDate.hour,
-            transitDate.minute
-          )}
-        />
+        <ResultDisplay charts={charts} view={view} asOf={asOf} />
       </Card>
 
-      <Card className="p-4 bg-bg">
+      <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-fg-muted">สลับระบบคำนวณ</div>
-          <div className="flex gap-2">
-            {(["suriyayatra", "lahiri"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSystem(s)}
-                className={
-                  system === s
-                    ? "rounded-lg bg-violet-600 text-white text-xs font-semibold px-3 py-1.5"
-                    : "rounded-lg border border-border text-xs font-medium px-3 py-1.5 hover:bg-surface"
-                }
-              >
-                {s === "suriyayatra" ? "สุริยยาตร์" : "นิรายนะ (Lahiri)"}
-              </button>
+          <p className="text-[13px] text-fg-muted">สลับระบบคำนวณ</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="ระบบคำนวณ">
+            {CHART_SYSTEMS.map((s) => (
+              <Chip key={s.id} selected={system === s.id} onClick={() => setSystem(s.id)}>
+                {s.label}
+              </Chip>
             ))}
           </div>
         </div>
       </Card>
 
-      <Card className="p-4 bg-bg">
-        <button
-          type="button"
-          onClick={() => setBirth(null)}
-          className="w-full rounded-xl border border-border bg-bg text-fg-muted font-medium py-2.5 hover:bg-surface transition-colors text-sm"
-        >
-          แก้ไขข้อมูลวันเดือนปีเกิด
-        </button>
-      </Card>
+      <Button type="button" variant="ghost" className="w-full" onClick={() => setBirth(null)}>
+        <PencilLine strokeWidth={1.5} />
+        แก้ไขข้อมูลวันเดือนปีเกิด
+      </Button>
     </div>
   );
 }
 
 function Tabs({ view, onChange }: { view: View; onChange: (v: View) => void }) {
-  const tabs: { id: View; label: string }[] = [
-    { id: "natal", label: "ดวงกำเนิด" },
-    { id: "transit", label: "ดวงจร" },
-    { id: "overlay", label: "ราศีจร (ซ้อน)" },
-  ];
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-lg bg-surface p-1">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onChange(t.id)}
-          className={cn(
-            "rounded-md py-2 text-xs font-medium transition-colors",
-            view === t.id
-              ? "bg-bg text-violet-700 shadow-sm"
-              : "text-fg-muted hover:text-fg"
-          )}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div role="tablist" aria-label="มุมมองดวงชะตา" className="grid grid-cols-3 gap-1 rounded-pill bg-sunk p-1">
+      {VIEW_TABS.map((t) => {
+        const active = view === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(t.id)}
+            className={cn(
+              "h-10 rounded-pill border text-[13px] font-medium transition-colors sm:text-sm",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+              active ? "border-gold/60 bg-gold-soft text-gold" : "border-transparent text-fg-muted hover:text-fg"
+            )}
+          >
+            {t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

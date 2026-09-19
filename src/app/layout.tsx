@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Playfair_Display, Trirong } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { BottomTabBar } from "@/components/nav/BottomTabBar";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
-import { MemphisBackground } from "@/components/effects/MemphisBackground";
+import { ConstellationBackground } from "@/components/effects/ConstellationBackground";
 import { StoreHydrator } from "@/store/StoreHydrator";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+const trirong = Trirong({
+  variable: "--font-trirong",
+  subsets: ["thai", "latin"],
+  weight: ["500", "600"],
+  display: "swap",
 });
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 const DEFAULT_TITLE = "REFFORTUNE — ดูดวงออนไลน์ แม่นยำ ครบวงจร | ไพ่ทาโรต์ โหราศาสตร์ นามมติ เลขศาสตร์";
@@ -128,34 +130,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" data-theme="light">
+    <html lang="th" data-theme="dark" className={`${trirong.variable} ${playfair.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <script
-          // Pre-hydration: set data-theme from the same key ThemeProvider writes
-          // ("reffortune-theme", plain string). Prevents FOUC of the data-theme
-          // attribute on first paint. CSS variables for non-light themes are
-          // still applied by ThemeProvider after mount.
-          dangerouslySetInnerHTML={{
-            __html: `(() => {
-  try {
-    var VALID = ["light", "pastel", "rainbow", "soft"];
-    var stored = localStorage.getItem("reffortune-theme");
-    var theme = stored && VALID.indexOf(stored) !== -1 ? stored : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-  } catch (e) {}
-})();`,
-          }}
-        />
       </head>
-      <body className={`${inter.variable} ${playfair.variable} font-sans antialiased bg-bg pb-20 text-fg`}>
+      <body className="font-sans antialiased bg-bg text-fg pb-20">
         <ThemeProvider>
           <StoreHydrator />
           <AuthProvider>
-            <MemphisBackground />
+            <ConstellationBackground />
             {children}
-            <SpeedInsights />
-            <Analytics />
+            {/* Vercel-only scripts: on Cloudflare / local they 404 on every page. */}
+            {process.env.VERCEL ? (
+              <>
+                <SpeedInsights />
+                <Analytics />
+              </>
+            ) : null}
             <BottomTabBar />
           </AuthProvider>
         </ThemeProvider>

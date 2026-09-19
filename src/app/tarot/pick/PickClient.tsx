@@ -1,278 +1,289 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useEffect, useState, useRef } from "react";
-import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
-import { TAROT_DECK } from "@/lib/tarot/deck";
-import { shuffleCards } from "@/lib/tarot/engine";
+import { useReducedMotion } from "framer-motion";
+import { AppBar } from "@/components/nav/AppBar";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { Card } from "@/components/ui/Card";
+import { PickActionBar, type PickStage } from "@/components/tarot/pick/PickActionBar";
+import { PickBackdrop } from "@/components/tarot/pick/PickBackdrop";
+import { PickGrid } from "@/components/tarot/pick/PickGrid";
+import { SHUFFLE_GATHER_MS } from "@/components/tarot/pick/PickTile";
+import { REVEAL_IMAGE_SIZES } from "@/components/tarot/pick/RevealCard";
+import { RevealRow } from "@/components/tarot/pick/RevealRow";
+import { TarotFacePreload } from "@/components/tarot/pick/TarotCardFace";
 import { trackEvent } from "@/lib/analytics/tracking";
-import { ChevronLeft, RefreshCcw } from "lucide-react";
+import { getCardById } from "@/lib/tarot/deck";
+import { TOPICS, buildResultHref, parsePickQuery } from "@/lib/tarot/spreads";
+import { drawPickGrid } from "@/lib/tarot/pick/seededShuffle";
+import { AUTO_ADVANCE_MS, flipDelaysMs } from "@/lib/tarot/pick/revealTiming";
+import {
+  getPickSeed,
+  getPickSeedServerSnapshot,
+  reseedPick,
+  subscribePickSeed,
+} from "@/lib/tarot/pick/seedStore";
+import type { TarotCard } from "@/lib/tarot/types";
 
-import { motion, AnimatePresence } from "framer-motion";
+/** Cards are always read upright on this page (result page parses `<id>.<orientation>`). */
+const ORIENTATION = "upright";
+const BACK_HREF = "/tarot";
 
-const allowedCounts = new Set([1, 2, 3, 4, 5, 6, 10]);
+function markIndex(list: boolean[], index: number): boolean[] {
+  return list[index] ? list : list.map((value, i) => (i === index ? true : value));
+}
 
-const CardBackImage = "/card/backcard.png"; // Use user-provided asset
-const SHUFFLE_DELAY_MS = 80;
-const GRID_FADE_DURATION = 0.1;
-const GRID_STAGGER_DELAY = 0.0015;
-const GRID_CARD_DURATION = 0.12;
-
+/**
+ * Two beats, one tap each: pick → "เปิดไพ่". The reveal stage then runs by
+ * itself — cards turn over one after another (a tap opens one early) and
+ * the page moves to the result once the last flip settles. With
+ * prefers-reduced-motion there is no flip to watch, so "เปิดไพ่" goes
+ * straight to the result.
+ */
 export default function PickClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const rawCount = Number(searchParams.get("count") ?? "3");
-  const count = allowedCounts.has(rawCount) ? rawCount : 3;
-  
-  const [shuffled, setShuffled] = useState<typeof TAROT_DECK>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [question, setQuestion] = useState("");
-  const [isShuffling, setIsShuffling] = useState(true);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
+  const reduced = useReducedMotion() ?? false;
 
-  const canSelectMore = selected.length < count;
+  const { spread, topic, question } = useMemo(() => parsePickQuery(searchParams), [searchParams]);
+  const count = spread.count;
+  const topicLabel = TOPICS.find((t) => t.id === topic)?.labelTh ?? "";
 
-  // Initialize and Shuffle
-  useEffect(() => {
-    handleShuffle();
-  }, []);
+  // Per-visit seed (sessionStorage) → same 30 cards after pick → result → back.
+  const seed = useSyncExternalStore(subscribePickSeed, getPickSeed, getPickSeedServerSnapshot);
+  const cards = useMemo(() => (seed === null ? null : drawPickGrid(seed)), [seed]);
 
-  const handleShuffle = () => {
-    setIsShuffling(true);
-    setSelected([]);
-    // Keep a tiny beat so the shuffle state is perceptible, but feel instant.
-    setTimeout(() => {
-        setShuffled(shuffleCards(TAROT_DECK));
-        setIsShuffling(false);
-    }, SHUFFLE_DELAY_MS);
-  };
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
+  const [stage, setStage] = useState<PickStage>("pick");
+  const [flipped, setFlipped] = useState<boolean[]>([]);
+  const [settled, setSettled] = useState<boolean[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [shuffling, setShuffling] = useState(false);
+  const submittedRef = useRef(false);
+
+  const selectedIds = pickedIds.slice(0, count);
+  const canReveal = selectedIds.length === count;
+  const revealCards = selectedIds
+    .map(getCardById)
+    .filter((card): card is TarotCard => card !== null);
+  const revealCount = revealCards.length;
+  const flippedCount = flipped.filter(Boolean).length;
+  const allFlipped = revealCount > 0 && flippedCount === revealCount;
+  const allSettled =
+    revealCount > 0 && settled.length === revealCount && settled.every(Boolean);
+
+  const cardsToken = selectedIds.map((id) => `${id}.${ORIENTATION}`).join(",");
+  const resultHref = useMemo(
+    () => buildResultHref({ spreadId: spread.id, topic, question, cardsToken, count }),
+    [spread.id, topic, question, cardsToken, count]
+  );
 
   useEffect(() => {
     trackEvent("reading_start", { vertical: "tarot", step: "pick_view", count });
   }, [count]);
 
-  // Calculate card size to fit screen
+  // Warm the result route as soon as the hand is complete so the hand-off is instant.
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Calculate card size to fit 13 cols x 6 rows exactly
-    const updateSize = () => {
-        const { clientWidth, clientHeight } = containerRef.current!;
-        const cols = 13;
-        const rows = 6;
-        
-        // Subtract gap size (e.g. 1px gap)
-        const gap = 1; 
-        const w = (clientWidth - (cols - 1) * gap) / cols;
-        const h = (clientHeight - (rows - 1) * gap - 128) / rows; // -128 for bottom padding
-        
-        setCardSize({ width: w, height: h });
-    };
+    if (canReveal) router.prefetch(resultHref);
+  }, [canReveal, resultHref, router]);
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, [containerRef.current]);
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+  }, [reduced]);
 
-  const onToggleSelect = useCallback(
+  const toggleCard = useCallback(
     (cardId: string) => {
-      if (isShuffling) return;
-      const pickedIndex = selected.findIndex((token) => token.startsWith(`${cardId}.`));
-      
-      if (pickedIndex >= 0) {
-        // Deselect
-        setSelected((prev) => prev.filter((_, i) => i !== pickedIndex));
-      } else {
-        // Select
-        if (!canSelectMore) return;
-        setSelected((prev) => [...prev, `${cardId}.upright`]);
-      }
+      setPickedIds((prev) => {
+        if (prev.includes(cardId)) return prev.filter((id) => id !== cardId);
+        if (prev.length >= count) return prev;
+        return [...prev, cardId];
+      });
     },
-    [canSelectMore, selected, isShuffling]
+    [count]
   );
 
-  function submitReading() {
-    if (selected.length !== count) return;
+  // "สับใหม่": sweep the hand off the table first, then deal a fresh seed.
+  function shuffle() {
+    if (!shuffling) setShuffling(true);
+  }
+
+  useEffect(() => {
+    if (!shuffling) return;
+    const timer = window.setTimeout(() => {
+      reseedPick();
+      setPickedIds([]);
+      setShuffling(false);
+    }, SHUFFLE_GATHER_MS);
+    return () => window.clearTimeout(timer);
+  }, [shuffling]);
+
+  const submit = useCallback(() => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    setSubmitting(true);
     trackEvent("reading_submitted", {
       vertical: "tarot",
       step: "pick_submit",
       count,
-      hasQuestion: question.trim().length > 0,
+      hasQuestion: question.length > 0,
     });
-    const params = new URLSearchParams({ count: String(count), cards: selected.join(",") });
-    if (question.trim()) params.set("question", question.trim());
-    router.push(`/tarot/result?${params.toString()}`);
+    router.push(resultHref);
+  }, [count, question, resultHref, router]);
+
+  function reveal() {
+    if (!canReveal) return;
+    if (reduced) {
+      submit();
+      return;
+    }
+    setFlipped(Array.from({ length: count }, () => false));
+    setSettled(Array.from({ length: count }, () => false));
+    setStage("reveal");
+    scrollToTop();
+  }
+
+  function backToPick() {
+    if (submitting) return;
+    setStage("pick");
+    setPickedIds([]);
+    setFlipped([]);
+    setSettled([]);
+    scrollToTop();
+  }
+
+  const flipCard = useCallback((index: number) => {
+    setFlipped((prev) => markIndex(prev, index));
+  }, []);
+
+  const settleCard = useCallback((index: number) => {
+    setSettled((prev) => markIndex(prev, index));
+  }, []);
+
+  // The ritual: cards turn over on their own, in order. Tapping one early is fine.
+  useEffect(() => {
+    if (stage !== "reveal") return;
+    const timers = flipDelaysMs(revealCount).map((delay, index) =>
+      window.setTimeout(() => flipCard(index), delay)
+    );
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [stage, revealCount, flipCard]);
+
+  // Last flip settled → short hold → result page. No extra tap.
+  useEffect(() => {
+    if (stage !== "reveal" || !allSettled || submitting) return;
+    const timer = window.setTimeout(submit, AUTO_ADVANCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [stage, allSettled, submitting, submit]);
+
+  function skipToResult() {
+    setFlipped((prev) => prev.map(() => true));
+    submit();
+  }
+
+  if (stage === "reveal") {
+    return (
+      <main>
+        <PageContainer variant="narrow">
+          <AppBar
+            backHref={BACK_HREF}
+            label="เปิดไพ่"
+            title="ไพ่ที่คุณเลือก"
+            caption={
+              allFlipped
+                ? "เปิดครบทุกใบแล้ว · กำลังพาคุณไปดูผล"
+                : "ไพ่กำลังเปิดทีละใบ · แตะเพื่อเปิดก่อนได้"
+            }
+          />
+          <p className="sr-only" aria-live="polite">
+            เปิดแล้ว {flippedCount} / {revealCount}
+          </p>
+
+          <section className="mt-4" aria-busy={submitting || undefined}>
+            <p className="eyebrow text-center">{spread.titleTh}</p>
+            <RevealRow
+              className="mt-5"
+              cards={revealCards}
+              positions={spread.positionsTh}
+              flipped={flipped}
+              reduced={reduced}
+              onFlip={flipCard}
+              onFlipComplete={settleCard}
+            />
+          </section>
+
+          <PickActionBar
+            stage="reveal"
+            canReveal={canReveal}
+            submitting={submitting}
+            onShuffle={shuffle}
+            onReveal={reveal}
+            onBackToPick={backToPick}
+            onDone={skipToResult}
+          />
+        </PageContainer>
+      </main>
+    );
   }
 
   return (
-    <main className="fixed inset-0 bg-[#1a1a1a] text-white overflow-hidden flex flex-col">
-      {/* ── Top Bar (Minimal) ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/20 backdrop-blur-sm z-20">
-        <Link href="/tarot" className="p-2 rounded-full hover:bg-white/10 transition">
-          <ChevronLeft className="w-6 h-6" />
-        </Link>
-        
-        <div className="flex flex-col items-center">
-            <h1 className="text-sm font-semibold tracking-wide">
-                เลือกไพ่ {selected.length}/{count} ใบ
-            </h1>
-            <div className="flex gap-1 mt-1">
-                {Array.from({ length: count }).map((_, i) => (
-                    <div key={i} className={cn("w-1.5 h-1.5 rounded-full transition-all", i < selected.length ? "bg-accent scale-125" : "bg-white/20")} />
-                ))}
-            </div>
-        </div>
+    <main>
+      <PageContainer variant="narrow">
+        <AppBar
+          backHref={BACK_HREF}
+          label="ตั้งจิตอธิษฐาน"
+          title={
+            <span aria-live="polite" data-testid="pick-counter" className="tabular-nums">
+              เลือกแล้ว {selectedIds.length} / {count}
+            </span>
+          }
+          caption={shuffling ? "กำลังสับไพ่ใหม่…" : "แตะเพื่อเลือก · แตะซ้ำเพื่อยกเลิก"}
+        />
 
-        <button onClick={handleShuffle} disabled={isShuffling} className="p-2 rounded-full hover:bg-white/10 transition">
-          <RefreshCcw className={cn("w-5 h-5", isShuffling && "animate-spin")} />
-        </button>
-      </div>
+        <section className="relative z-0">
+          <PickBackdrop reduced={reduced} />
 
-      {/* ── Grid Wall ── */}
-      <div ref={containerRef} className="flex-1 relative w-full h-full pb-32 overflow-hidden bg-black">
-        <AnimatePresence mode="sync">
-          {isShuffling ? (
-            <motion.div 
-              key="shuffling"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.08 }}
-              className="absolute inset-0 flex items-center justify-center"
-            >
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-24 h-40">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <motion.div 
-                      key={i} 
-                      className="absolute inset-0 border border-white/20 bg-[#2a2a2a] rounded-lg shadow-xl"
-                      initial={{ y: 0, rotate: 0 }}
-                      animate={{ 
-                        y: [0, -12, 0, 12, 0],
-                        x: [0, i % 2 === 0 ? 10 : -10, 0, i % 2 === 0 ? -10 : 10, 0],
-                        rotate: [0, i * 3, 0, -i * 3, 0],
-                        zIndex: i
-                      }}
-                      transition={{ 
-                        duration: 0.55, 
-                        repeat: Infinity, 
-                        ease: "easeInOut",
-                        delay: i * 0.04 
-                      }}
-                      style={{ backgroundImage: `url(${CardBackImage})`, backgroundSize: 'cover' }}
-                    />
-                  ))}
-                </div>
-                <motion.p 
-                  animate={{ opacity: [0.65, 1, 0.65] }}
-                  transition={{ duration: 0.6, repeat: Infinity }}
-                  className="text-xs font-medium tracking-widest uppercase text-white/70 mt-4"
-                >
-                  กำลังสับไพ่...
-                </motion.p>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="grid"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: GRID_FADE_DURATION }}
-              className="w-full h-full grid grid-cols-13 gap-[1px] bg-white/10"
-            >
-              {shuffled.map((card, idx) => {
-                  const isSelected = selected.some(s => s.startsWith(card.id));
-                  const isDimmed = !isSelected && !canSelectMore;
+          <Card variant="sunk" className="mt-2 p-3 md:p-4">
+            <p className="eyebrow">
+              {spread.titleTh} · {count} ใบ · {topicLabel}
+            </p>
+            {question ? (
+              <p className="mt-1 font-display text-base leading-snug text-fg">“{question}”</p>
+            ) : null}
+          </Card>
 
-                  return (
-                      <motion.div 
-                          key={card.id}
-                          onClick={() => onToggleSelect(card.id)}
-                          initial={{ opacity: 0, scale: 0.92, y: 10 }}
-                          animate={{ 
-                            opacity: 1, 
-                            scale: 1, 
-                            y: 0,
-                            filter: isDimmed ? "grayscale(100%) opacity(50%)" : "grayscale(0%) opacity(100%)",
-                          }}
-                          transition={{ 
-                            duration: GRID_CARD_DURATION, 
-                            delay: idx * GRID_STAGGER_DELAY,
-                            ease: [0.22, 1, 0.36, 1]
-                          }}
-                          whileHover={!isDimmed ? { scale: 1.1, zIndex: 30, filter: "brightness(1.2)" } : {}}
-                          className={cn(
-                              "relative cursor-pointer w-full h-full overflow-hidden bg-black",
-                              isSelected && "z-20 brightness-125"
-                          )}
-                      >
-                          <div className={cn(
-                              "w-full h-full relative transition-all duration-300",
-                              isSelected ? "ring-2 ring-inset ring-accent scale-95" : ""
-                          )}>
-                              {/* Card Back Pattern */}
-                              <div 
-                                  className="w-full h-full bg-cover bg-center" 
-                                  style={{ backgroundImage: `url(${CardBackImage})` }}
-                              />
-                              
-                              {isSelected && (
-                                  <motion.div 
-                                    initial={{ opacity: 0, scale: 0.5 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="absolute inset-0 flex items-center justify-center bg-accent/40 backdrop-blur-[1px]"
-                                  >
-                                      <span className="text-[10px] md:text-sm font-bold text-white drop-shadow-md">
-                                          {selected.findIndex(s => s.startsWith(card.id)) + 1}
-                                      </span>
-                                  </motion.div>
-                              )}
-                          </div>
-                      </motion.div>
-                  );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          <PickGrid
+            className="mt-5"
+            cards={cards}
+            seed={seed}
+            selectedIds={selectedIds}
+            max={count}
+            shuffling={shuffling}
+            reduced={reduced}
+            onToggle={toggleCard}
+          />
+        </section>
 
-      {/* ── Bottom Controls ── */}
-      <div className="fixed bottom-24 left-0 right-0 p-4 z-50 flex justify-center pointer-events-none gap-3 items-center">
-         <Button
-           onClick={handleShuffle}
-           disabled={isShuffling}
-           variant="secondary"
-           className="h-14 px-6 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 text-white border border-white/20 pointer-events-auto"
-         >
-           <RefreshCcw className={cn("w-5 h-5 mr-2", isShuffling && "animate-spin")} />
-           สับไพ่ใหม่
-         </Button>
+        {/* Faces for the chosen cards start loading before "เปิดไพ่" is pressed. */}
+        {canReveal ? <TarotFacePreload cards={revealCards} sizes={REVEAL_IMAGE_SIZES} /> : null}
 
-         {selected.length === count ? (
-             <Button 
-                onClick={submitReading} 
-                className="w-full max-w-sm h-14 rounded-full text-lg shadow-[0_0_40px_rgba(139,92,246,0.5)] bg-accent hover:bg-accent-hover text-white animate-in slide-in-from-bottom-8 duration-300 pointer-events-auto border-2 border-white/20"
-             >
-                 ดูผลทำนาย
-             </Button>
-         ) : (
-             <div className="bg-black/60 backdrop-blur-md px-6 py-4 h-14 flex items-center justify-center rounded-full border border-white/10 text-white/80 text-sm pointer-events-auto shadow-lg animate-pulse">
-                 เลือกอีก {count - selected.length} ใบ
-             </div>
-         )}
-      </div>
-
-      <style jsx global>{`
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.8); }
-            to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
+        <PickActionBar
+          stage="pick"
+          canReveal={canReveal}
+          submitting={submitting}
+          onShuffle={shuffle}
+          onReveal={reveal}
+          onBackToPick={backToPick}
+          onDone={skipToResult}
+        />
+      </PageContainer>
     </main>
   );
 }

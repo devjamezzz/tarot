@@ -1,8 +1,16 @@
 // Chinese Zodiac Animal Display Component
 // Feature: popular-fortune-features
-// Displays Chinese zodiac animal with icon, Thai name, and element
+// Displays Chinese zodiac animal with its Han glyph, Thai name, and element
 
 import * as React from "react";
+import {
+  Coins,
+  Droplets,
+  Flame,
+  Mountain,
+  TreeDeciduous,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Card, CardTitle, CardDesc } from "@/components/ui/Card";
 import {
@@ -21,62 +29,49 @@ export interface AnimalDisplayProps {
   showDetails?: boolean; // Show traits and lucky items
 }
 
-/**
- * Map animal to emoji icon
- * Using Unicode emoji for visual representation
- */
-const ANIMAL_ICONS: Record<ChineseZodiacAnimal, string> = {
-  [ChineseZodiacAnimal.RAT]: "🐀",
-  [ChineseZodiacAnimal.OX]: "🐂",
-  [ChineseZodiacAnimal.TIGER]: "🐅",
-  [ChineseZodiacAnimal.RABBIT]: "🐇",
-  [ChineseZodiacAnimal.DRAGON]: "🐉",
-  [ChineseZodiacAnimal.SNAKE]: "🐍",
-  [ChineseZodiacAnimal.HORSE]: "🐎",
-  [ChineseZodiacAnimal.GOAT]: "🐐",
-  [ChineseZodiacAnimal.MONKEY]: "🐒",
-  [ChineseZodiacAnimal.ROOSTER]: "🐓",
-  [ChineseZodiacAnimal.DOG]: "🐕",
-  [ChineseZodiacAnimal.PIG]: "🐖",
+/** Gold lucide icon per element (replaces the old per-element colour palette). */
+const ELEMENT_ICONS: Record<ChineseElement, LucideIcon> = {
+  [ChineseElement.WOOD]: TreeDeciduous,
+  [ChineseElement.FIRE]: Flame,
+  [ChineseElement.EARTH]: Mountain,
+  [ChineseElement.METAL]: Coins,
+  [ChineseElement.WATER]: Droplets,
 };
 
-/**
- * Map element to color class
- */
-const ELEMENT_COLORS: Record<ChineseElement, string> = {
-  [ChineseElement.WOOD]: "text-green-600",
-  [ChineseElement.FIRE]: "text-red-600",
-  [ChineseElement.EARTH]: "text-yellow-700",
-  [ChineseElement.METAL]: "text-gray-500",
-  [ChineseElement.WATER]: "text-blue-600",
-};
+/** First Han character of "龍 (Lóng)" — shown as the display glyph instead of an emoji. */
+function hanGlyph(chineseName: string): string {
+  return Array.from(chineseName.trim())[0] ?? "";
+}
 
-/**
- * Map element to background gradient
- */
-const ELEMENT_GRADIENTS: Record<ChineseElement, string> = {
-  [ChineseElement.WOOD]: "from-green-50 to-green-100",
-  [ChineseElement.FIRE]: "from-red-50 to-red-100",
-  [ChineseElement.EARTH]: "from-yellow-50 to-yellow-100",
-  [ChineseElement.METAL]: "from-gray-50 to-gray-100",
-  [ChineseElement.WATER]: "from-blue-50 to-blue-100",
-};
+function DetailRow({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[13px] font-medium text-fg-muted">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span
+            key={item}
+            className="inline-block rounded-pill border border-line-faint bg-sunk px-2.5 py-1 text-[13px] text-fg"
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * AnimalDisplay Component
- * 
+ *
  * Displays Chinese zodiac animal information including:
- * - Animal icon (emoji)
- * - Thai name
- * - Chinese name
- * - Element with Thai name
- * - Optional: traits, lucky colors, numbers, directions
- * 
+ * - Han glyph of the animal in gold
+ * - Thai name and Chinese name
+ * - Element badge with a gold lucide icon
+ * - Optional: traits, lucky colours, numbers, directions
+ *
  * @example
- * <AnimalDisplay 
- *   animal={ChineseZodiacAnimal.DRAGON} 
- *   element={ChineseElement.WOOD}
- * />
+ * <AnimalDisplay animal={ChineseZodiacAnimal.DRAGON} element={ChineseElement.WOOD} />
  */
 export function AnimalDisplay({
   animal,
@@ -86,93 +81,45 @@ export function AnimalDisplay({
 }: AnimalDisplayProps) {
   const animalMeta = getAnimalMetadata(animal);
   const elementMeta = getElementMetadata(element);
+  const ElementIcon = ELEMENT_ICONS[element];
 
   return (
     <Card
-      className={cn(
-        "relative overflow-hidden",
-        `bg-gradient-to-br ${ELEMENT_GRADIENTS[element]}`,
-        className
-      )}
+      data-testid="animal-display"
+      className={cn("animate-fade-up motion-safe-fade", className)}
     >
-      {/* Animal Icon and Names */}
       <div className="flex items-start gap-4">
-        {/* Large Animal Icon */}
-        <div className="flex-shrink-0">
-          <div className="text-6xl leading-none">{ANIMAL_ICONS[animal]}</div>
+        <div
+          aria-hidden="true"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-card border border-line-faint bg-sunk font-display text-4xl leading-none text-gold"
+        >
+          {hanGlyph(animalMeta.chineseName)}
         </div>
 
-        {/* Animal and Element Info */}
-        <div className="flex-1 min-w-0">
-          {/* Thai Name */}
-          <CardTitle className="text-xl mb-1">
-            {animalMeta.thaiName}
-          </CardTitle>
+        <div className="min-w-0 flex-1">
+          <CardTitle className="text-[22px]">{animalMeta.thaiName}</CardTitle>
+          <CardDesc className="mt-0.5">{animalMeta.chineseName}</CardDesc>
 
-          {/* Chinese Name */}
-          <CardDesc className="mb-2 text-base">
-            {animalMeta.chineseName}
-          </CardDesc>
-
-          {/* Element Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm font-medium shadow-sm">
-            <span className={cn("font-semibold", ELEMENT_COLORS[element])}>
-              ธาตุ{elementMeta.thaiName}
-            </span>
-            <span className="text-fg-muted">
-              {elementMeta.chineseName}
-            </span>
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-gold bg-gold-soft px-3 py-1 text-[13px] font-medium text-gold">
+            <ElementIcon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            <span>ธาตุ{elementMeta.thaiName}</span>
+            <span className="text-fg-muted">{elementMeta.chineseName}</span>
           </div>
         </div>
       </div>
 
-      {/* Optional Details */}
       {showDetails && (
-        <div className="mt-4 space-y-3 border-t border-border/50 pt-4">
-          {/* Traits */}
-          <div>
-            <div className="text-xs font-semibold text-fg-muted mb-1">
-              ลักษณะนิสัย
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {animalMeta.traits.map((trait, index) => (
-                <span
-                  key={index}
-                  className="inline-block rounded-md bg-white/60 px-2 py-0.5 text-xs text-fg"
-                >
-                  {trait}
-                </span>
-              ))}
-            </div>
-          </div>
+        <div className="mt-4 space-y-3 border-t border-line-faint pt-4">
+          <DetailRow label="ลักษณะนิสัย" items={animalMeta.traits} />
+          <DetailRow label="สีมงคล" items={animalMeta.luckyColors} />
 
-          {/* Lucky Colors */}
           <div>
-            <div className="text-xs font-semibold text-fg-muted mb-1">
-              สีมงคล
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {animalMeta.luckyColors.map((color, index) => (
+            <p className="mb-1.5 text-[13px] font-medium text-fg-muted">เลขมงคล</p>
+            <div className="flex flex-wrap gap-2">
+              {animalMeta.luckyNumbers.map((number) => (
                 <span
-                  key={index}
-                  className="inline-block rounded-md bg-white/60 px-2 py-0.5 text-xs text-fg"
-                >
-                  {color}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Lucky Numbers */}
-          <div>
-            <div className="text-xs font-semibold text-fg-muted mb-1">
-              เลขมงคล
-            </div>
-            <div className="flex gap-1.5">
-              {animalMeta.luckyNumbers.map((number, index) => (
-                <span
-                  key={index}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-sm font-semibold text-fg shadow-sm"
+                  key={number}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-pill border border-gold text-sm font-bold tabular-nums text-gold"
                 >
                   {number}
                 </span>
@@ -180,22 +127,7 @@ export function AnimalDisplay({
             </div>
           </div>
 
-          {/* Lucky Directions */}
-          <div>
-            <div className="text-xs font-semibold text-fg-muted mb-1">
-              ทิศมงคล
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {animalMeta.luckyDirections.map((direction, index) => (
-                <span
-                  key={index}
-                  className="inline-block rounded-md bg-white/60 px-2 py-0.5 text-xs text-fg"
-                >
-                  {direction}
-                </span>
-              ))}
-            </div>
-          </div>
+          <DetailRow label="ทิศมงคล" items={animalMeta.luckyDirections} />
         </div>
       )}
     </Card>

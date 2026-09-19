@@ -24,6 +24,8 @@ interface ShareableCardProps {
   className?: string;
 }
 
+const CARD_BG = "#1B1226";
+
 export function ShareableCard({ data, onShare, className }: ShareableCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -40,11 +42,10 @@ export function ShareableCard({ data, onShare, className }: ShareableCardProps) 
       const dataUrl = await toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 2,
-        backgroundColor: "#faf5ff",
+        backgroundColor: CARD_BG,
       });
       setGeneratedImage(dataUrl);
 
-      // Auto download
       const link = document.createElement("a");
       link.download = `reffortune-${data.cardName.toLowerCase().replace(/\s+/g, "-")}.png`;
       link.href = dataUrl;
@@ -53,7 +54,7 @@ export function ShareableCard({ data, onShare, className }: ShareableCardProps) 
       onShare?.();
       return dataUrl;
     } catch (error) {
-      console.error("Failed to generate image:", error);
+      console.error("Failed to generate share image:", error);
       return null;
     } finally {
       setIsGenerating(false);
@@ -74,128 +75,107 @@ export function ShareableCard({ data, onShare, className }: ShareableCardProps) 
         text: `${data.cardNameTh || data.cardName} — ${data.meaning}`,
         files: [file],
       });
-    } catch (err) {
-      console.log("Share cancelled:", err);
+    } catch {
+      // User cancelled the share sheet — nothing to recover
     }
   }, [generatedImage, generateImage, data]);
 
   const orientationLabel = data.orientation === "upright" ? "ตั้งตรง" : "กลับหัว";
-  const orientationEmoji = data.orientation === "upright" ? "☀️" : "🌙";
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Hidden card for image generation */}
+      {/* Card captured by html-to-image */}
       <div
         ref={cardRef}
-        className="w-[360px] p-6 rounded-3xl"
+        className="w-[360px] rounded-sheet border border-gold/40 p-6 text-fg"
         style={{
-          background: "linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)",
-          boxShadow: "0 20px 60px rgba(124, 58, 237, 0.15)",
+          background: `radial-gradient(400px 260px at 50% -10%, rgba(110,76,122,0.35), transparent 70%), ${CARD_BG}`,
+          boxShadow: "inset 0 0 0 1px rgba(226,196,138,0.12)",
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center">
-              <span className="text-white text-sm">✦</span>
-            </div>
-            <span className="text-violet-700 font-semibold text-sm tracking-wide">
-              {data.brand || "REFFORTUNE"}
-            </span>
-          </div>
-          <span className="text-violet-400 text-xs">{data.date}</span>
+        <div className="mb-4 flex items-center justify-between">
+          <span className="font-serif text-sm font-semibold tracking-[0.04em] text-gold">
+            {data.brand || "REFFORTUNE"}
+          </span>
+          <span className="text-xs text-fg-subtle">{data.date}</span>
         </div>
 
         {/* Question */}
         {data.question && (
-          <div className="mb-4 p-3 bg-white/60 rounded-xl">
-            <p className="text-violet-600 text-xs font-medium mb-1">คำถามของคุณ</p>
-            <p className="text-violet-800 text-sm line-clamp-2">"{data.question}"</p>
+          <div className="mb-4 rounded-card border border-line-faint bg-sunk p-3">
+            <p className="eyebrow mb-1">คำถามของคุณ</p>
+            <p className="line-clamp-2 text-sm text-fg">&ldquo;{data.question}&rdquo;</p>
           </div>
         )}
 
-        {/* Card Display */}
+        {/* Card display */}
         <div className="relative mb-4">
-          <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-gradient-to-br from-violet-100 to-purple-50 flex items-center justify-center shadow-inner">
+          <div className="flex aspect-[2/3] items-center justify-center overflow-hidden rounded-[10px] border border-gold/60 bg-sunk">
             {data.cardImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- plain <img> is required for html-to-image rasterisation
               <img
                 src={data.cardImage}
                 alt={data.cardName}
                 className={cn(
-                  "w-full h-full object-cover",
+                  "h-full w-full object-cover",
                   data.orientation === "reversed" && "rotate-180"
                 )}
               />
             ) : (
-              <div className="text-center p-6">
-                <div className="text-6xl mb-2">🔮</div>
-                <p className="text-violet-400 text-sm">{data.cardName}</p>
-              </div>
+              <p className="p-6 text-center text-sm text-fg-muted">{data.cardName}</p>
             )}
           </div>
-          
-          {/* Orientation Badge */}
-          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full shadow-lg">
-            <span className="text-violet-600 text-xs font-medium">
-              {orientationEmoji} {orientationLabel}
-            </span>
+
+          <div className="absolute right-3 top-3 rounded-pill border border-line bg-surface/90 px-3 py-1">
+            <span className="text-xs font-medium text-gold">{orientationLabel}</span>
           </div>
         </div>
 
-        {/* Card Info */}
-        <div className="text-center mb-4">
-          <h3 className="text-violet-800 font-bold text-lg mb-1">
+        {/* Card name */}
+        <div className="mb-4 text-center">
+          <h3 className="mb-1 font-display text-lg font-semibold text-fg">
             {data.cardNameTh || data.cardName}
           </h3>
-          <p className="text-violet-500 text-xs">{data.cardName}</p>
+          <p className="text-xs text-fg-subtle">{data.cardName}</p>
         </div>
 
         {/* Meaning */}
-        <div className="bg-white/70 rounded-xl p-4 mb-4">
-          <p className="text-violet-600 text-xs font-medium mb-2 flex items-center gap-1">
-            <span>✨</span> ความหมาย
-          </p>
-          <p className="text-violet-800 text-sm leading-relaxed">{data.meaning}</p>
+        <div className="mb-4 rounded-card border border-line-faint bg-sunk p-4">
+          <p className="eyebrow mb-2">ความหมาย</p>
+          <p className="text-sm leading-relaxed text-fg">{data.meaning}</p>
         </div>
 
         {/* Reading */}
-        <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-xl p-4 border border-violet-200">
-          <p className="text-violet-600 text-xs font-medium mb-2 flex items-center gap-1">
-            <span>🌟</span> คำทำนาย
-          </p>
-          <p className="text-violet-900 text-sm leading-relaxed">{data.reading}</p>
+        <div className="rounded-card border border-line bg-gold-soft p-4">
+          <p className="eyebrow mb-2">คำทำนาย</p>
+          <p className="text-sm leading-relaxed text-fg">{data.reading}</p>
         </div>
 
-        {/* Footer CTA */}
-        <div className="mt-4 pt-4 border-t border-violet-200/50 text-center">
-          <p className="text-violet-400 text-xs">
-            🔮 ดูดวงกับเรฟ reffortune.com
-          </p>
+        {/* Footer */}
+        <div className="mt-4 border-t border-line-faint pt-4 text-center">
+          <p className="text-xs text-fg-subtle">ดูดวงกับเรฟ · reffortune.com</p>
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <div className="flex gap-2">
-        <Button
-          onClick={generateImage}
-          disabled={isGenerating}
-          className="flex-1 bg-violet-500 hover:bg-violet-600 text-white"
-        >
+        <Button onClick={generateImage} disabled={isGenerating} className="flex-1">
           {isGenerating ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Download className="w-4 h-4 mr-2" />
+            <Download className="size-4" strokeWidth={1.5} />
           )}
-          {isGenerating ? "กำลังสร้าง..." : "บันทึกรูป"}
+          {isGenerating ? "กำลังสร้าง…" : "บันทึกรูป"}
         </Button>
-        
+
         <Button
           onClick={handleNativeShare}
           disabled={isGenerating}
-          variant="secondary"
-          className="flex-1 border-violet-300 text-violet-600 hover:bg-violet-50"
+          variant="ghost"
+          className="flex-1"
         >
-          <Share2 className="w-4 h-4 mr-2" />
+          <Share2 className="size-4" strokeWidth={1.5} />
           แชร์
         </Button>
       </div>

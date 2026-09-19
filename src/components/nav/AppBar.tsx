@@ -1,62 +1,69 @@
 import * as React from "react";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+export interface AppBarProps {
+  /** Page title — rendered as the Trirong h1. */
+  title: React.ReactNode;
+  /** Gold eyebrow label above the title (e.g. "ไพ่ทาโรต์"). */
+  label?: React.ReactNode;
+  /** 13px muted line under the title (e.g. "3 ใบ · ความรัก · 19 ก.ย. 2569"). */
+  caption?: React.ReactNode;
+  backHref?: string;
+  right?: React.ReactNode;
+  className?: string;
+  /** Larger title on desktop (40px). */
+  largeTitle?: boolean;
+}
 
 export function AppBar({
   title,
-  right,
+  label,
+  caption,
   backHref,
+  right,
   className,
   largeTitle = false,
-}: {
-  title: React.ReactNode;
-  right?: React.ReactNode;
-  backHref?: string;
-  className?: string;
-  /** iOS-style large title header */
-  largeTitle?: boolean;
-}) {
+}: AppBarProps) {
   return (
     <header
       className={cn(
-        "flex items-center justify-between px-5 pt-6 pb-2",
-        largeTitle ? "pb-4" : null,
+        "flex items-start justify-between gap-3 px-5 pt-6 pb-3",
+        largeTitle && "pb-4",
         className
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         {backHref ? (
           <Link
             href={backHref}
-            aria-label="Back"
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface text-fg"
+            aria-label="ย้อนกลับ"
+            className={cn(
+              "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-pill",
+              "border border-line bg-surface text-fg transition-colors hover:bg-sunk",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            )}
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            <ChevronLeft className="h-5 w-5" strokeWidth={1.5} />
           </Link>
         ) : null}
-        <h1
-          className={cn(
-            "text-fg",
-            largeTitle
-              ? "text-3xl font-bold tracking-tight"
-              : "text-xl font-bold"
-          )}
-        >
-          {title}
-        </h1>
+        <div className="min-w-0">
+          {label ? <p className="eyebrow mb-1">{label}</p> : null}
+          <h1
+            className={cn(
+              "font-display text-[30px] font-semibold leading-tight text-fg [text-wrap:balance]",
+              largeTitle && "md:text-[40px]"
+            )}
+          >
+            {title}
+          </h1>
+          {caption ? (
+            <p className="mt-1 text-[13px] leading-snug text-fg-muted">{caption}</p>
+          ) : null}
+        </div>
       </div>
-      {right ? <div className="flex items-center gap-2">{right}</div> : null}
+      {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
     </header>
   );
 }

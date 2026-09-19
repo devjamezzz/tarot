@@ -1,6 +1,7 @@
 // Unit tests for Compatibility Engine
 // Feature: popular-fortune-features
 
+import { describe, it, expect } from 'vitest';
 import { calculateCompatibility, getBaselineCompatibility } from './engine';
 import { ZodiacSign } from '../horoscope/types';
 

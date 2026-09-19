@@ -15,29 +15,21 @@ export interface BrandLogoProps {
   variant?: "orb" | "full" | "text";
   size?: number;
   showWordmark?: boolean;
+  /** Kept for API compatibility — the wordmark is gold on every surface now. */
   inverted?: boolean;
   className?: string;
 }
+
+const WORDMARK_CLASS = "font-serif font-semibold tracking-[0.02em] text-gold";
 
 export function BrandLogo({
   variant = "orb",
   size = 32,
   showWordmark = true,
-  inverted = false,
   className,
 }: BrandLogoProps) {
   if (variant === "text") {
-    return (
-      <span
-        className={cn(
-          "font-serif font-semibold tracking-[0.02em]",
-          inverted ? "text-white" : "text-[var(--accent)]",
-          className,
-        )}
-      >
-        REFFORTUNE
-      </span>
-    );
+    return <span className={cn(WORDMARK_CLASS, className)}>REFFORTUNE</span>;
   }
 
   if (variant === "full") {
@@ -62,7 +54,7 @@ export function BrandLogo({
       aria-label="REFFORTUNE"
     >
       <span
-        className="relative inline-block overflow-hidden rounded-full"
+        className="relative inline-block overflow-hidden rounded-pill"
         style={{ width: size, height: size }}
       >
         <Image
@@ -76,10 +68,7 @@ export function BrandLogo({
       </span>
       {showWordmark && (
         <span
-          className={cn(
-            "font-serif font-semibold tracking-[0.02em]",
-            inverted ? "text-white" : "text-[var(--accent)]",
-          )}
+          className={WORDMARK_CLASS}
           style={{ fontSize: Math.max(15, Math.round(size * 0.6)) }}
         >
           REFFORTUNE

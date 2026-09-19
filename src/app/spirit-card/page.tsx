@@ -1,15 +1,34 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useCallback } from "react";
-import Link from "next/link";
-import { Heart } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Heart, RefreshCw, Sparkles } from "lucide-react";
+import { AppBar } from "@/components/nav/AppBar";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { BirthDateField, type BirthDateValue } from "@/components/ui/BirthDateField";
+import { InlineError } from "@/components/ui/ErrorDisplay";
+import { LineCtaButton } from "@/components/ui/LineCtaButton";
+import { ReadingResultShell } from "@/components/reading/ReadingResultShell";
+import { CardFigure } from "@/components/library/CardFigure";
+import { cardNameTh } from "@/components/library/labels";
+import { Toast, TOAST_REMOVED, TOAST_SAVED, useToast } from "@/components/verticals/local/Toast";
+import { StepsCard } from "@/components/verticals/local/StepsCard";
+import { ExploreMore } from "@/components/verticals/local/ExploreMore";
 import { useLibrary } from "@/lib/library/useLibrary";
 import { buildSavedSpiritCardReading } from "@/lib/library/storage";
 import { trackEvent } from "@/lib/analytics/tracking";
 import { evaluatePaywall, recordFreeReading } from "@/lib/monetization/paywall";
 import { runReadingPipeline } from "@/lib/reading/pipeline";
 import { spiritCardFromDob } from "@/lib/tarot/spirit";
-import { BrandLogo } from "@/components/ui/BrandLogo";
+import { formatThaiDate } from "@/lib/format/thaiDate";
+
+const FALLBACK_MS = 7000;
+
+type AiState =
+  | { status: "loading" }
+  | { status: "ai"; summary: string; cardStructure: string }
+  | { status: "fallback" };
 
 function normalizeText(value: unknown): string {
   if (typeof value === "string") return value;
@@ -33,120 +52,65 @@ function normalizeText(value: unknown): string {
   return "";
 }
 
+function toIsoDob(value: BirthDateValue): string {
+  const mm = String(value.month).padStart(2, "0");
+  const dd = String(value.day).padStart(2, "0");
+  return `${value.year}-${mm}-${dd}`;
+}
+
+function newId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+}
+
+const HOW_IT_WORKS_STEPS: ReadonlyArray<string> = [
+  "กรอกวัน เดือน ปีเกิดของคุณ",
+  "ระบบคำนวณเลขเส้นทางชีวิต แล้วจับคู่กับไพ่ประจำตัวของคุณ",
+  "อ่านความหมายตามตำรา พร้อมสารจากจักรวาลและแนวทางปฏิบัติ",
+];
+
 export default function SpiritCardPage() {
   const lib = useLibrary();
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const toast = useToast();
 
-  const [dob, setDob] = useState("");
+  const [birth, setBirth] = useState<BirthDateValue | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [submittedDob, setSubmittedDob] = useState<string | null>(null);
-  const [aiReading, setAiReading] = useState<null | { summary: string; cardStructure: string }>(null);
+  const [ai, setAi] = useState<AiState>({ status: "loading" });
 
   useEffect(() => {
     trackEvent("reading_start", { vertical: "spirit-card", step: "form_view" });
   }, []);
 
-  useEffect(() => {
-    if (!submittedDob) {
-      setSavedId(null);
-      return;
-    }
-
+  const session = useMemo(
+    () => (submittedDob ? runReadingPipeline({ kind: "spirit-card", dob: submittedDob }) : null),
+    [submittedDob]
+  );
+  const spirit = useMemo(() => (submittedDob ? spiritCardFromDob(submittedDob) : null), [submittedDob]);
+  const paywall = useMemo(
+    () => (session ? evaluatePaywall({ vertical: "spirit-card", stage: "result", sessionId: session.sessionId }) : null),
+    [session]
+  );
+  const savedId = useMemo(() => {
+    if (!submittedDob) return null;
     const existing = lib.items.find(
-      (item) => "kind" in item && item.kind === "spirit_card" && (item as any).dob === submittedDob
+      (item) => "kind" in item && item.kind === "spirit_card" && item.dob === submittedDob
     );
-    setSavedId(existing?.id ?? null);
+    return existing?.id ?? null;
   }, [lib.items, submittedDob]);
-
-  const session = useMemo(() => {
-    if (!submittedDob) return null;
-    return runReadingPipeline({ kind: "spirit-card", dob: submittedDob });
-  }, [submittedDob]);
-
-  const paywall = useMemo(() => {
-    if (!session) return null;
-    return evaluatePaywall({
-      vertical: "spirit-card",
-      stage: "result",
-      sessionId: session.sessionId,
-    });
-  }, [session]);
-
-  const spirit = useMemo(() => {
-    if (!submittedDob) return null;
-    return spiritCardFromDob(submittedDob);
-  }, [submittedDob]);
-
-  const toggleSaved = useCallback(() => {
-    if (!submittedDob || !spirit) return;
-
-    if (savedId) {
-      lib.remove(savedId);
-      setSavedId(null);
-      return;
-    }
-
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
-
-    const title = `Spirit Card — ${spirit.card.nameTh ?? spirit.card.name}`;
-
-    lib.upsert(
-      buildSavedSpiritCardReading({
-        id,
-        dob: submittedDob,
-        cardId: spirit.card.id,
-        orientation: spirit.orientation,
-        lifePathNumber: spirit.lifePathNumber,
-        title,
-        aiSummary: aiReading?.summary,
-        aiCardStructure: aiReading?.cardStructure,
-        tags: [spirit.card.name, ...(spirit.card.keywordsUpright ?? []), ...(spirit.card.keywordsReversed ?? [])],
-        snapshot: session
-          ? {
-              input: { dob: submittedDob },
-              card: {
-                cardId: spirit.card.id,
-                orientation: spirit.orientation,
-                lifePathNumber: spirit.lifePathNumber,
-              },
-              session,
-              output: aiReading ? { message: aiReading.summary, practice: aiReading.cardStructure } : undefined,
-            }
-          : undefined,
-      })
-    );
-
-    setSavedId(id);
-  }, [aiReading?.cardStructure, aiReading?.summary, lib, savedId, session, spirit, submittedDob]);
 
   useEffect(() => {
     if (!session || !submittedDob) return;
 
     recordFreeReading();
-    trackEvent("reading_result_viewed", {
-      vertical: "spirit-card",
-      sessionId: session.sessionId,
-    });
-
+    trackEvent("reading_result_viewed", { vertical: "spirit-card", sessionId: session.sessionId });
     if (paywall?.show) {
-      trackEvent("paywall_shown", {
-        vertical: "spirit-card",
-        reason: paywall.reason,
-        ctaVariant: paywall.variant,
-      });
+      trackEvent("paywall_shown", { vertical: "spirit-card", reason: paywall.reason, ctaVariant: paywall.variant });
     }
 
     const controller = new AbortController();
-    const fallback = {
-      summary: session.summary,
-      cardStructure: session.blocks.map((b) => `${b.title}: ${b.body}`).join("\n\n"),
-    };
-
     const fallbackTimer = setTimeout(() => {
-      setAiReading((prev) => prev ?? fallback);
-    }, 7000);
+      setAi((prev) => (prev.status === "loading" ? { status: "fallback" } : prev));
+    }, FALLBACK_MS);
 
     fetch("/api/ai/spirit", {
       method: "POST",
@@ -154,117 +118,186 @@ export default function SpiritCardPage() {
       body: JSON.stringify({ dob: submittedDob }),
       signal: controller.signal,
     })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data?.ai ?? null;
-      })
-      .then((ai) => {
-        if (!ai) {
-          setAiReading((prev) => prev ?? fallback);
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const payload = data?.ai;
+        const summary = normalizeText(payload?.summary);
+        const cardStructure = normalizeText(payload?.cardStructure);
+        if (!payload || data?.fallback || !summary) {
+          setAi({ status: "fallback" });
           return;
         }
-        setAiReading({
-          summary: normalizeText(ai.summary) || fallback.summary,
-          cardStructure: normalizeText(ai.cardStructure) || fallback.cardStructure,
-        });
+        setAi({ status: "ai", summary, cardStructure });
       })
       .catch(() => {
-        setAiReading((prev) => prev ?? fallback);
+        if (!controller.signal.aborted) setAi({ status: "fallback" });
       })
-      .finally(() => {
-        clearTimeout(fallbackTimer);
-      });
+      .finally(() => clearTimeout(fallbackTimer));
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      clearTimeout(fallbackTimer);
+    };
   }, [session, submittedDob, paywall]);
 
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!dob.trim()) return;
+    if (!birth) {
+      setError("กรุณากรอกวันเกิดให้ครบ");
+      return;
+    }
+    const dob = toIsoDob(birth);
+    if (!runReadingPipeline({ kind: "spirit-card", dob })) {
+      setError("วันเกิดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง");
+      return;
+    }
+    trackEvent("reading_submitted", { vertical: "spirit-card", step: "form_submit" });
+    setError("");
+    setAi({ status: "loading" });
+    setSubmittedDob(dob);
+  }
 
-    const next = runReadingPipeline({ kind: "spirit-card", dob });
-    if (!next) {
-      setError("กรุณาใส่วันเกิดในรูปแบบที่ถูกต้อง");
+  function reset() {
+    setSubmittedDob(null);
+    setAi({ status: "loading" });
+  }
+
+  function toggleSaved() {
+    if (!submittedDob || !spirit || !session) return;
+
+    if (savedId) {
+      lib.remove(savedId);
+      toast.show(TOAST_REMOVED);
       return;
     }
 
-    trackEvent("reading_submitted", { vertical: "spirit-card", step: "form_submit" });
-    setError("");
-    setAiReading(null);
-    setLoading(true);
-    setSubmittedDob(dob);
-    setLoading(false);
+    const nameTh = cardNameTh(spirit.card);
+    const aiText = ai.status === "ai" ? ai : null;
+    lib.upsert(
+      buildSavedSpiritCardReading({
+        id: newId(),
+        dob: submittedDob,
+        cardId: spirit.card.id,
+        orientation: spirit.orientation,
+        lifePathNumber: spirit.lifePathNumber,
+        title: `ไพ่จิตวิญญาณ — ${nameTh}`,
+        aiSummary: aiText?.summary,
+        aiCardStructure: aiText?.cardStructure,
+        tags: [nameTh, ...(spirit.card.keywordsUpright ?? []), ...(spirit.card.keywordsReversed ?? [])],
+        snapshot: {
+          input: { dob: submittedDob },
+          card: {
+            cardId: spirit.card.id,
+            orientation: spirit.orientation,
+            lifePathNumber: spirit.lifePathNumber,
+          },
+          session,
+          output: aiText ? { message: aiText.summary, practice: aiText.cardStructure } : undefined,
+        },
+      })
+    );
+    toast.show(TOAST_SAVED);
   }
 
+  if (!submittedDob || !session || !spirit) {
+    return (
+      <PageContainer variant="narrow">
+        <AppBar
+          label="ไพ่จิตวิญญาณ"
+          title="ไพ่จิตวิญญาณ"
+          caption="รับข้อความจากจักรวาล ผ่านวันเกิดของคุณ"
+          backHref="/explore"
+        />
+        <Card className="mt-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <BirthDateField id="spirit-card-birth" value={birth} onChange={setBirth} required />
+            {error ? <InlineError message={error} /> : null}
+            <Button type="submit" size="lg" className="w-full">
+              <Sparkles strokeWidth={1.5} />
+              เปิดไพ่จิตวิญญาณ
+            </Button>
+          </form>
+        </Card>
+        <StepsCard label="วิธีดู" title="เปิดไพ่จิตวิญญาณใน 3 ขั้นตอน" steps={HOW_IT_WORKS_STEPS} />
+        <ExploreMore />
+        <Toast message={toast.message} />
+      </PageContainer>
+    );
+  }
+
+  const card = spirit.card;
+  const keywords = spirit.orientation === "upright" ? card.keywordsUpright : card.keywordsReversed;
+  const meaning = spirit.orientation === "upright" ? card.meaningUpright : card.meaningReversed;
+  const nameTh = cardNameTh(card);
+
   return (
-    <main className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 pt-4 pb-2">
-        <Link href="/" className="flex items-center gap-2">
-          <BrandLogo size={24} />
-        </Link>
-      </header>
-
-      <div className="px-5 py-6">
-        <h1 className="font-serif text-2xl font-semibold text-gray-900">ไพ่จิตวิญญาณ</h1>
-        <p className="mt-1 text-sm text-gray-500">รับข้อความจากจักรวาล ผ่านวันเกิดของคุณ</p>
-
-        <form onSubmit={handleSubmit} className="mt-5 rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-medium text-violet-600">วันเกิด</label>
-          <input
-            type="date"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            required
-            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 w-full h-12 rounded-xl bg-violet-600 text-white font-semibold text-sm shadow-lg shadow-violet-200 transition hover:bg-violet-700 hover:shadow-xl disabled:opacity-50 active:scale-[0.98]"
-          >
-            {loading ? "กำลังอ่าน..." : "เปิดไพ่จิตวิญญาณ"}
-          </button>
-        </form>
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-            {error}
+    <>
+      <ReadingResultShell
+        label="ไพ่จิตวิญญาณ"
+        title="ไพ่จิตวิญญาณของคุณ"
+        caption={`เกิด ${formatThaiDate(submittedDob)} · เลขเส้นทางชีวิต ${spirit.lifePathNumber}`}
+        backHref="/explore"
+        computed={
+          <div className="space-y-4">
+            <div className="mx-auto w-[200px]">
+              <CardFigure card={card} orientation={spirit.orientation} priority />
+            </div>
+            <Card>
+              <p className="eyebrow">ความหมายตามตำรา</p>
+              <p className="mt-2 text-base leading-[1.65] text-fg">{meaning}</p>
+              {keywords.length ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {keywords.map((kw) => (
+                    <span key={kw} className="rounded-pill border border-line px-2.5 py-0.5 text-[13px] text-fg-muted">
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
           </div>
-        )}
-
-        {aiReading && (
-          <section className="mt-5 space-y-4">
-            <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-violet-600">สารจากจักรวาล</h2>
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-600">{aiReading.summary}</p>
+        }
+        aiLoading={ai.status === "loading"}
+        ai={
+          ai.status === "ai" ? (
+            <div className="space-y-3">
+              <Card>
+                <p className="eyebrow">สารจากจักรวาล</p>
+                <p className="mt-2 whitespace-pre-line text-base leading-[1.65] text-fg">{ai.summary}</p>
+              </Card>
+              {ai.cardStructure ? (
+                <Card variant="sunk">
+                  <p className="eyebrow">แนวทางปฏิบัติ</p>
+                  <p className="mt-2 whitespace-pre-line text-base leading-[1.65] text-fg">{ai.cardStructure}</p>
+                </Card>
+              ) : null}
             </div>
-            <div className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-violet-600">แนวทางปฏิบัติ</h2>
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-600">{aiReading.cardStructure}</p>
+          ) : undefined
+        }
+        cta={
+          <>
+            <LineCtaButton
+              text={`ไพ่จิตวิญญาณของฉันคือ ${nameTh} (เลขเส้นทางชีวิต ${spirit.lifePathNumber}) อยากให้ช่วยอ่านเพิ่มเติม`}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={toggleSaved} aria-pressed={Boolean(savedId)}>
+                <Heart strokeWidth={1.5} className={savedId ? "text-gold" : undefined} fill={savedId ? "currentColor" : "none"} />
+                {savedId ? "บันทึกแล้ว" : "บันทึกลงคลัง"}
+              </Button>
+              <Button variant="ghost" onClick={reset}>
+                <RefreshCw strokeWidth={1.5} />
+                ดูวันเกิดอื่น
+              </Button>
             </div>
-
-            <div className="flex items-center justify-between rounded-[24px] border border-gray-200 bg-white p-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">บันทึกไว้ในคลัง</p>
-                <p className="mt-1 text-xs text-gray-500">แตะหัวใจเพื่อบันทึก/ยกเลิกบันทึก</p>
-              </div>
-              <button
-                onClick={toggleSaved}
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
-                  savedId
-                    ? "bg-red-50 text-red-500"
-                    : "bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                }`}
-                aria-label={savedId ? "ยกเลิกบันทึก" : "บันทึก"}
-              >
-                <Heart className={`w-5 h-5 ${savedId ? "fill-current" : ""}`} />
-              </button>
-            </div>
-          </section>
-        )}
-      </div>
-    </main>
+          </>
+        }
+        trust={{
+          computedFrom: "วันเกิดและเลขเส้นทางชีวิต จับคู่กับความหมายไพ่ตามตำรา",
+          confidence: "ปานกลาง",
+          aiUsed: ai.status === "ai",
+        }}
+      />
+      <Toast message={toast.message} />
+    </>
   );
 }

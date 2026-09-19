@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         reason: "missing_gemini_api_key",
         ai: {
           summary: cardMeaning({ card, orientation }),
-          cardStructure: "ขออภัย ระบบยังไม่พร้อม สรุปจากความหมายไพ่พื้นฐานให้ก่อน",
+          cardStructure: "ความหมายตามตำราของไพ่ที่คุณเปิด",
         },
       });
     }
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         fallback: true,
         ai: { 
           summary: cardMeaning({ card, orientation }), 
-          cardStructure: "ขออภัย ระบบขัดข้องชั่วคราว" 
+          cardStructure: "ความหมายตามตำราของไพ่ที่คุณเปิด" 
         } 
       });
     }

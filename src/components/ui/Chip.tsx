@@ -3,20 +3,44 @@ import { cn } from "@/lib/cn";
 
 export type ChipProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   selected?: boolean;
+  size?: "sm" | "md";
+  leadingIcon?: React.ReactNode;
 };
 
-export function Chip({ className, selected = false, ...props }: ChipProps) {
+const sizes: Record<NonNullable<ChipProps["size"]>, string> = {
+  sm: "min-h-11 px-3 text-xs",
+  md: "h-11 px-4 text-sm",
+};
+
+export function Chip({
+  className,
+  selected = false,
+  size = "md",
+  leadingIcon,
+  children,
+  ...props
+}: ChipProps) {
   return (
     <button
       type="button"
+      aria-pressed={selected}
       className={cn(
-        "inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition",
+        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-pill border font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        sizes[size],
         selected
-          ? "bg-accent-soft text-fg border border-border"
-          : "bg-surface text-fg-muted border border-border hover:bg-surface-2 hover:text-fg",
+          ? "border-gold bg-gold-soft text-gold"
+          : "border-line bg-transparent text-fg hover:bg-sunk",
         className
       )}
       {...props}
-    />
+    >
+      {leadingIcon ? (
+        <span className="inline-flex shrink-0 [&_svg]:size-4" aria-hidden="true">
+          {leadingIcon}
+        </span>
+      ) : null}
+      {children}
+    </button>
   );
 }

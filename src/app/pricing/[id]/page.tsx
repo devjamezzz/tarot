@@ -1,244 +1,144 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Check, Clock, FileText, Star } from "lucide-react";
+import { DEFAULT_PACKAGES } from "@/lib/packages/defaults";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { AppBar } from "@/components/nav/AppBar";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { LineCtaButton } from "@/components/ui/LineCtaButton";
+import { PackageBadge } from "@/components/pricing/PackageCard";
+import { PriceTag } from "@/components/pricing/PriceTag";
+import { ConfidenceBar } from "@/components/pricing/ConfidenceBar";
+import { BookingSteps } from "@/components/pricing/BookingSteps";
+import {
+  badgeFor,
+  getPackage,
+  getPackageDetails,
+  isFreePackage,
+  lineInquiryText,
+} from "@/components/pricing/packageDetails";
 
 interface PricingDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 }
 
-const packages: Record<string, {
-  name: string;
-  subtitle: string;
-  price: string;
-  priceAlt?: string;
-  description: string;
-  fullDescription: string;
-  features: string[];
-  includes: string[];
-  deliveryTime: string;
-  format: string;
-}> = {
-  "horoscope-full": {
-    name: "เปิดดวงชะตาฉบับเต็ม",
-    subtitle: "Personal Horoscope Report",
-    price: "฿929",
-    description: "PDF 15-20 หน้า",
-    fullDescription: "เจาะลึกทุกมิติชีวิตด้วยโหราศาสตร์ไทย ทั้งพื้นดวงเดิม ดวงชะตาปี 2026 การเสริมดวง และการ์ดคำแนะนำจากไพ่ ฮีลใจประจำปี",
-    features: [
-      "พื้นดวงเดิม + Inner Self",
-      "การเงิน & ความมั่งคั่ง",
-      "อาชีพ & ความสำเร็จ",
-      "ความรัก & คู่ครอง",
-      "บริวาร & คนรอบข้าง",
-      "สุขภาพ & อุปสรรค",
-    ],
-    includes: [
-      "ดวงรายปี 2026 ครบทุกด้าน",
-      "เคล็ดลับเสริมดวงเฉพาะบุคคล",
-      "การ์ดฮีลใจประจำปีจาก Oracle Card",
-    ],
-    deliveryTime: "3-7 วัน",
-    format: "PDF 15-20 หน้า",
-  },
-  "tarot-10": {
-    name: "แพ็ก B | ไพ่ 10 ใบ + โหราศาสตร์",
-    subtitle: "ยอดนิยม",
-    price: "฿389",
-    description: "คอล 20-30 นาที",
-    fullDescription: "ดูภาพรวมดวงและทิศทางชีวิตในช่วงนี้ ครอบคลุมทุกเรื่องหลัก ทั้งการงาน การเงิน โชคลาภ ความรัก และจังหวะชีวิต",
-    features: [
-      "ไพ่ 10 ใบ ดูภาพรวมชีวิต",
-      "การงาน การเงิน ความรัก",
-      "โชคลาภ คนรอบข้าง สุขภาพ",
-      "อ่านคู่โหราศาสตร์",
-    ],
-    includes: [
-      "พิมพ์ + อัดเสียง",
-      "คำแนะนำจากไพ่ที่นำไปใช้ได้จริง",
-    ],
-    deliveryTime: "1-2 วัน",
-    format: "คอล 20-30 นาที | พิมพ์ | อัดเสียง",
-  },
-  "yearly": {
-    name: "ดูดวงรายปี",
-    subtitle: "รู้จังหวะชีวิตล่วงหน้า",
-    price: "฿489",
-    priceAlt: "฿749 (คอล 1 ชม)",
-    description: "PDF หรือ คอล",
-    fullDescription: "รู้จังหวะชีวิตล่วงหน้า วางแผนให้แม่นยำ ดวงปีนี้ควร 'โฟกัส' อะไรที่สุด?",
-    features: [
-      "ดวงปีนี้โฟกัสอะไร",
-      "เงิน งาน รัก โชค",
-      "ไฮไลท์ครบ พร้อมระวัง",
-      "ทริคเสริมโชค",
-    ],
-    includes: [],
-    deliveryTime: "1-3 วัน",
-    format: "PDF หรือ คอล 1 ชม",
-  },
-  "hora-report": {
-    name: "ดวงรายปี Hora-Report",
-    subtitle: "เลข 7 ตัว",
-    price: "฿489",
-    description: "ไม่ต้องใช้เวลาเกิด",
-    fullDescription: "ใช้ศาสตร์เลข 7 ตัว ในการทำนายเรื่องเด่นในช่วงอายุนั้นๆ ไม่ต้องใช้เวลาเกิด",
-    features: [
-      "เลข 7 ตัว แม่นยำ",
-      "ดวงช่วงอายุนั้นๆ",
-      "อะไรดี อะไรปัง อะไรระวัง",
-      "เงิน งาน รัก สุขภาพ",
-    ],
-    includes: [
-      "ทริคเสริมดวง",
-    ],
-    deliveryTime: "1-3 วัน",
-    format: "PDF",
-  },
-  "qa-3": {
-    name: "โปรเปิดไพ่ 3 คำถาม",
-    subtitle: "พิเศษ",
-    price: "฿99",
-    description: "ถึง 31 ม.ค.",
-    fullDescription: "เช็คดวง ดูแนวทางต่างๆ อยากเคลียร์ข้อสงสัย ไพ่ถามตอบ",
-    features: [
-      "ไพ่ถามตอบ 3 คำถาม",
-      "เช็คดวง ดูแนวทาง",
-      "พิมพ์ตอบกลับ",
-    ],
-    includes: [
-      "เร็วสุดภายใน 1-2 ชั่วโมง",
-    ],
-    deliveryTime: "ภายในวันเดียว",
-    format: "พิมพ์ตอบกลับ",
-  },
-  "qa-1": {
-    name: "โปร 1 คำถาม",
-    subtitle: "เหมาๆ",
-    price: "฿39",
-    description: "ถึง 31 ม.ค.",
-    fullDescription: "มีข้อสงสัย เปิดไพ่แบบ Q/A การงาน ความรัก",
-    features: [
-      "ไพ่ถามตอบ 1 คำถาม",
-      "การงาน ความรัก",
-      "พิมพ์ตอบกลับ",
-    ],
-    includes: [],
-    deliveryTime: "ภายในวันเดียว",
-    format: "พิมพ์ตอบกลับ",
-  },
-};
-
 export async function generateStaticParams() {
-  return Object.keys(packages).map((id) => ({ id }));
+  return DEFAULT_PACKAGES.map((pkg) => ({ id: pkg.id }));
 }
 
 export async function generateMetadata({ params }: PricingDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const pkg = packages[id];
-  if (!pkg) {
-    return { title: "ไม่พบแพ็กเกจ" };
-  }
+  const pkg = getPackage(id);
+  if (!pkg) return { title: "ไม่พบแพ็กเกจ" };
+  const details = getPackageDetails(id);
+  const price = isFreePackage(pkg) ? "ฟรี" : pkg.price;
   return {
-    title: `${pkg.name} — ${pkg.price}`,
-    description: pkg.fullDescription,
+    title: `${pkg.name} — ${price}`,
+    description: details?.fullDescription ?? pkg.detail ?? pkg.description,
+    alternates: { canonical: `/pricing/${id}` },
   };
+}
+
+function ChecklistSection({
+  title,
+  items,
+  icon: Icon,
+}: {
+  title: string;
+  items: string[];
+  icon: typeof Check;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="mt-6">
+      <h2 className="font-display text-[22px] font-semibold leading-snug text-fg">{title}</h2>
+      <ul className="mt-3 space-y-2">
+        {items.map((item) => (
+          <li key={item} className="flex items-start gap-3 text-[15px] leading-relaxed text-fg">
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-pill bg-gold-soft text-gold">
+              <Icon className="size-3.5" strokeWidth={2} aria-hidden="true" />
+            </span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 export default async function PricingDetailPage({ params }: PricingDetailPageProps) {
   const { id } = await params;
-  const pkg = packages[id];
+  const pkg = getPackage(id);
+  if (!pkg) notFound();
 
-  if (!pkg) {
-    notFound();
-  }
+  const details = getPackageDetails(id);
+  const badge = badgeFor(pkg);
+  const free = isFreePackage(pkg);
+  const fullDescription = details?.fullDescription ?? pkg.detail ?? pkg.description;
 
   return (
-    <main className="mx-auto w-full max-w-lg px-5 py-6 pb-24">
-      {/* Back Button */}
-      <Link 
-        href="/" 
-        className="inline-flex items-center gap-1 text-sm text-violet-600 mb-4 hover:underline"
+    <main data-testid="pricing-detail">
+      <PageContainer variant="narrow" className="pb-40">
+        <AppBar
+          label={details?.tagline ?? "แพ็กเกจ"}
+          title={pkg.name}
+          caption={pkg.description}
+          backHref="/pricing"
+        />
+
+        <Card className="space-y-4">
+          {badge ? (
+            <div>
+              <PackageBadge label={badge} />
+            </div>
+          ) : null}
+          <PriceTag pkg={pkg} size="lg" />
+          <ConfidenceBar compact className="border-t border-line-faint pt-3" />
+        </Card>
+
+        <Card variant="sunk" className="mt-4">
+          <p className="text-[15px] leading-relaxed text-fg">{fullDescription}</p>
+        </Card>
+
+        <ChecklistSection title="รายละเอียดที่จะได้รับ" items={pkg.features} icon={Check} />
+        <ChecklistSection title="รวมในแพ็กเกจ" items={details?.includes ?? []} icon={Star} />
+
+        {details ? (
+          <Card variant="sunk" className="mt-6 grid grid-cols-2 gap-4" data-testid="pricing-delivery">
+            <div className="flex items-start gap-2">
+              <Clock className="mt-0.5 size-4 shrink-0 text-gold" strokeWidth={1.5} aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[13px] text-fg-muted">ระยะเวลาทำงาน</p>
+                <p className="text-sm font-bold text-fg">{details.deliveryTime}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <FileText className="mt-0.5 size-4 shrink-0 text-gold" strokeWidth={1.5} aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[13px] text-fg-muted">รูปแบบที่ได้รับ</p>
+                <p className="text-sm font-bold text-fg">{details.format}</p>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        <BookingSteps className="mt-6" />
+      </PageContainer>
+
+      <div
+        className="above-tabbar pointer-events-none fixed inset-x-0 z-30 bg-gradient-to-t from-bg via-bg/95 to-transparent px-4 pb-3 pt-8"
+        data-testid="pricing-detail-cta"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        กลับหน้าแรก
-      </Link>
-
-      {/* Header */}
-      <div className="mb-6">
-        <span className="inline-block px-3 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded-full mb-2">
-          {pkg.subtitle}
-        </span>
-        <h1 className="text-2xl font-bold text-gray-900">{pkg.name}</h1>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-violet-600">{pkg.price}</span>
-          {pkg.priceAlt && (
-            <span className="text-sm text-gray-500">หรือ {pkg.priceAlt}</span>
+        <div className="pointer-events-auto mx-auto w-full max-w-[640px]">
+          {free && pkg.href ? (
+            <Button asChild variant="gold" size="lg" className="w-full">
+              <Link href={pkg.href}>เริ่มเลย ฟรี</Link>
+            </Button>
+          ) : (
+            <LineCtaButton label="จองแพ็กเกจนี้ทาง LINE" text={lineInquiryText(pkg)} />
           )}
-        </div>
-        <p className="text-sm text-gray-500 mt-1">{pkg.description}</p>
-      </div>
-
-      {/* Description */}
-      <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 mb-6">
-        <p className="text-gray-700 leading-relaxed">{pkg.fullDescription}</p>
-      </div>
-
-      {/* Features */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">รายละเอียดที่จะได้รับ</h2>
-        <ul className="space-y-2">
-          {pkg.features.map((feature, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs">
-                ✓
-              </span>
-              <span className="text-gray-700">{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Includes */}
-      {pkg.includes.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">รวมในแพ็กเกจ</h2>
-          <ul className="space-y-2">
-            {pkg.includes.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs">
-                  ⭐
-                </span>
-                <span className="text-gray-700">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Delivery Info */}
-      <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">ระยะเวลาทำงาน</p>
-            <p className="font-medium text-gray-900">{pkg.deliveryTime}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">รูปแบบไฟล์</p>
-            <p className="font-medium text-gray-900">{pkg.format}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div className="fixed bottom-20 left-0 right-0 px-5 z-30">
-        <div className="max-w-lg mx-auto">
-          <button className="w-full h-12 rounded-xl bg-violet-600 text-white font-medium shadow-lg shadow-violet-200 hover:bg-violet-700 transition-all active:scale-[0.98]">
-            จองแพ็กเกจนี้
-          </button>
         </div>
       </div>
     </main>

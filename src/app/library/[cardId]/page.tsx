@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Layers } from "lucide-react";
+import { AppBar } from "@/components/nav/AppBar";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { Card } from "@/components/ui/Card";
+import { buttonVariants } from "@/components/ui/Button";
 import { getCardById, TAROT_DECK } from "@/lib/tarot/deck";
+import { arcanaLabelTh, cardNameTh } from "@/components/library/labels";
 
 export function generateStaticParams() {
   return TAROT_DECK.map((card) => ({ cardId: card.id }));
@@ -16,17 +22,34 @@ export async function generateMetadata({
   const { cardId } = await params;
   const card = getCardById(cardId);
   if (!card) return {};
-  const arcanaLabel = card.arcana === "major" ? "Major Arcana" : `Minor Arcana • ${card.suit}`;
+  const nameTh = cardNameTh(card);
+  const arcanaLabel = arcanaLabelTh(card);
   return {
-    title: `${card.name} — ความหมายไพ่ทาโรต์ (${arcanaLabel})`,
-    description: `ความหมายไพ่ ${card.name} ทั้งตั้งตรงและกลับหัว พร้อมคีย์เวิร์ดและแนวทางเชิงปฏิบัติ — REFFORTUNE`,
+    title: `${nameTh} (${card.name}) — ความหมายไพ่ทาโรต์ ${arcanaLabel}`,
+    description: `ความหมายไพ่${nameTh} (${card.name}) ทั้งตั้งตรงและกลับหัว พร้อมคีย์เวิร์ดและแนวทางเชิงปฏิบัติ — REFFORTUNE`,
     alternates: { canonical: `/library/${cardId}` },
     openGraph: {
-      title: `${card.name} — ไพ่ทาโรต์ REFFORTUNE`,
-      description: `เรียนรู้ความหมายไพ่ ${card.name} (${arcanaLabel}) ทั้งด้านบวกและด้านท้าทาย`,
+      title: `${nameTh} — ไพ่ทาโรต์ REFFORTUNE`,
+      description: `เรียนรู้ความหมายไพ่${nameTh} (${arcanaLabel}) ทั้งด้านบวกและด้านท้าทาย`,
       url: `/library/${cardId}`,
     },
   };
+}
+
+function KeywordChips({ keywords, tone }: { keywords: string[]; tone: "success" | "danger" }) {
+  const cls =
+    tone === "success"
+      ? "border-success/40 bg-success/10 text-success"
+      : "border-danger/40 bg-danger/10 text-danger";
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      {keywords.map((kw) => (
+        <span key={kw} className={`rounded-pill border px-2.5 py-0.5 text-[13px] ${cls}`}>
+          {kw}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export default async function TarotCardDetailPage({
@@ -41,67 +64,59 @@ export default async function TarotCardDetailPage({
     notFound();
   }
 
+  const nameTh = cardNameTh(card);
+
   return (
-    <main className="mx-auto w-full max-w-lg px-5 py-6">
-      <Link
-        href="/library"
-        className="inline-flex items-center gap-1 text-sm transition"
-        style={{ color: "var(--text-muted)" }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        ห้องสมุด
-      </Link>
+    <PageContainer variant="narrow">
+      <AppBar
+        label={arcanaLabelTh(card)}
+        title={nameTh}
+        caption={`${card.name} · หมายเลข ${card.number}`}
+        backHref="/library"
+      />
 
-      <section className="mt-4 rounded-2xl border p-5" style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}>
-        <p className="text-xs font-medium" style={{ color: "var(--purple-500)" }}>{card.id}</p>
-        <h1 className="mt-2 text-2xl font-bold" style={{ color: "var(--text)" }}>{card.name}</h1>
-        {card.nameTh ? <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{card.nameTh}</p> : null}
-        {card.image ? (
-          <Image
-            src={card.image}
-            alt={card.name}
-            width={360}
-            height={540}
-            className="mt-4 w-full max-w-xs rounded-2xl border object-cover"
-            style={{ borderColor: "var(--border)" }}
-          />
-        ) : null}
-
-        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-          <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-            <p className="text-xs font-medium" style={{ color: "var(--text-subtle)" }}>Arcana</p>
-            <p className="mt-1 font-medium" style={{ color: "var(--text)" }}>{card.arcana}</p>
+      {card.image ? (
+        <figure className="mx-auto mt-4 w-[220px]">
+          <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[10px] border border-gold/60 bg-sunk shadow-card">
+            <Image src={card.image} alt={`ไพ่${nameTh}`} fill sizes="220px" priority className="object-cover" />
           </div>
-          <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-            <p className="text-xs font-medium" style={{ color: "var(--text-subtle)" }}>Number</p>
-            <p className="mt-1 font-medium" style={{ color: "var(--text)" }}>{card.number}</p>
-          </div>
-        </div>
+        </figure>
+      ) : null}
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <article className="rounded-xl border-l-4 border p-4" style={{ borderColor: "var(--border)", borderLeftColor: "var(--success)" }}>
-            <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>ตั้งตรง</h2>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{card.meaningUpright}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {card.keywordsUpright.map((kw) => (
-                <span key={kw} className="rounded-xl px-2.5 py-0.5 text-xs" style={{ background: "rgba(34,197,94,0.08)", color: "var(--success)" }}>{kw}</span>
-              ))}
-            </div>
-          </article>
-
-          <article className="rounded-xl border-l-4 border p-4" style={{ borderColor: "var(--border)", borderLeftColor: "var(--rose)" }}>
-            <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>กลับหัว</h2>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{card.meaningReversed}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {card.keywordsReversed.map((kw) => (
-                <span key={kw} className="rounded-xl px-2.5 py-0.5 text-xs" style={{ background: "rgba(244,63,94,0.08)", color: "var(--rose)" }}>{kw}</span>
-              ))}
-            </div>
-          </article>
+      <dl className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-card border border-line-faint bg-sunk p-3">
+          <dt className="text-[13px] text-fg-muted">ชุดไพ่</dt>
+          <dd className="mt-1 font-medium text-fg">{arcanaLabelTh(card)}</dd>
         </div>
-      </section>
-    </main>
+        <div className="rounded-card border border-line-faint bg-sunk p-3">
+          <dt className="text-[13px] text-fg-muted">หมายเลข</dt>
+          <dd className="mt-1 font-medium tabular-nums text-fg">{card.number}</dd>
+        </div>
+      </dl>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <Card className="border-l-4 border-l-success">
+          <h2 className="font-display text-lg font-semibold text-fg">ตั้งตรง</h2>
+          <p className="mt-2 text-base leading-[1.65] text-fg">{card.meaningUpright}</p>
+          <KeywordChips keywords={card.keywordsUpright} tone="success" />
+        </Card>
+
+        <Card className="border-l-4 border-l-danger">
+          <h2 className="font-display text-lg font-semibold text-fg">กลับหัว</h2>
+          <p className="mt-2 text-base leading-[1.65] text-fg">{card.meaningReversed}</p>
+          <KeywordChips keywords={card.keywordsReversed} tone="danger" />
+        </Card>
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3">
+        <Link href="/tarot" className={buttonVariants({ size: "lg", className: "w-full" })}>
+          <Layers strokeWidth={1.5} />
+          เปิดไพ่ถามเรื่องของคุณ
+        </Link>
+        <Link href="/library" className={buttonVariants({ variant: "ghost", className: "w-full" })}>
+          กลับไปห้องสมุด
+        </Link>
+      </div>
+    </PageContainer>
   );
 }

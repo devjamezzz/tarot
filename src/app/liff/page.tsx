@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LiffClient } from "./LiffClient";
 
 export const metadata: Metadata = {
-  title: "LINE",
+  title: "เข้าสู่ระบบผ่าน LINE",
   robots: { index: false, follow: false },
 };
 

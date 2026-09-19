@@ -4,6 +4,15 @@ import { buildTarotPrompt } from "@/lib/ai/prompts";
 import { retrieveRag, formatRagContext, guessIntentsFromText } from "@/lib/rag/retriever";
 import { creditGate, settleReading } from "@/lib/auth/withCredits";
 import { ReadingType } from "@/lib/reading/types";
+import { getEsiimsiStick } from "@/lib/esiimsi/baseline";
+import {
+  buildEsiimsiBaselineAi,
+  buildEsiimsiQuestion,
+  DEFAULT_ESIIMSI_TOPIC,
+  formatEsiimsiAiStructure,
+  getEsiimsiTopicLabel,
+  isEsiimsiTopicId,
+} from "@/lib/esiimsi/format";
 
 type GeminiTarotResponse = {
   summary: string;
@@ -37,6 +46,9 @@ function formatAsCardStructure(parsed: GeminiTarotResponse): string {
   return parts.join('\n\n');
 }
 
+// สรุปเมื่อไม่มีผลจาก Gemini (สาขาทาโรต์) — เนื้อหาจริงอยู่ใน cardStructure ตามตำรา
+const TAROT_FALLBACK_SUMMARY = "ความหมายตามตำราของไพ่ที่คุณเปิด";
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -45,6 +57,8 @@ export async function POST(req: Request) {
       cardsToken?: string;
       count?: number;
       question?: string;
+      /** เซียมซีเท่านั้น: เรื่องที่ตั้งจิตถาม (ตรวจกับ isEsiimsiTopicId ก่อนใช้) */
+      topic?: string;
     };
 
     const cards = parseCardTokens(body.cardsToken ?? "");
@@ -77,10 +91,18 @@ export async function POST(req: Request) {
     const countMap: Record<number, 1 | 2 | 3 | 4 | 5 | 6 | 10> = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 10: 10 };
     const spreadType = countMap[body.count ?? cards.length] ?? 3;
 
-    const question = body.question;
+    // เซียมซี: เรื่องที่ถามรับเฉพาะค่าที่รู้จัก (ค่าอื่นถือเป็น "ทั่วไป") และคำถามที่บันทึกลงประวัติ
+    // เป็นข้อความมาตรฐานที่สร้างฝั่งเซิร์ฟเวอร์ ไม่ใช้ข้อความจากฝั่ง client
+    const esiimsiTopic = isEsiimsiTopicId(body.topic) ? body.topic : DEFAULT_ESIIMSI_TOPIC;
+    const question =
+      isEsiimsi && esiimsiNum !== null ? buildEsiimsiQuestion(esiimsiNum, esiimsiTopic) : body.question;
+
+    // เซียมซี: ตำรา 28 ใบคือคำตอบสำรองเสมอ (summary = ความหมาย, cardStructure = การงาน/ความรัก/คำแนะนำ)
+    const stick = esiimsiNum !== null ? getEsiimsiStick(esiimsiNum) : null;
+    const esiimsiBaselineAi = stick ? buildEsiimsiBaselineAi(stick) : null;
 
     const fallbackStructure = isEsiimsi
-      ? `เซียมซีหมายเลข ${esiimsiNum} — กำลังประมวลผลคำทำนาย ลองอีกครั้งในไม่กี่นาทีนะคะ/ครับ`
+      ? (esiimsiBaselineAi?.cardStructure ?? "")
       : cards
           .map((drawn, i) => {
             const orient = drawn.orientation === "upright" ? "ตั้งตรง" : "กลับหัว";
@@ -88,24 +110,24 @@ export async function POST(req: Request) {
           })
           .join("\n");
 
+    const fallbackAi = {
+      summary: isEsiimsi && esiimsiBaselineAi ? esiimsiBaselineAi.summary : TAROT_FALLBACK_SUMMARY,
+      cardStructure: fallbackStructure || "—",
+    };
+
     if (!apiKey) {
       return NextResponse.json({
         ok: true,
         fallback: true,
         reason: "missing_gemini_api_key",
-        ai: {
-          summary: isEsiimsi
-            ? `ตอนนี้ระบบอ่านเซียมซีเชิงลึกยังไม่พร้อม น้อมรับคำทำนายหมายเลข ${esiimsiNum} ไว้ก่อนนะคะ/ครับ`
-            : "ช่วงนี้ระบบอ่านเชิงลึกยังไม่พร้อม จึงสรุปจากโครงไพ่พื้นฐานให้ก่อน",
-          cardStructure: fallbackStructure || "—",
-        },
+        ai: fallbackAi,
       });
     }
 
     // --- RAG (local-file prototype) ---
     const intent = guessIntentsFromText(question ?? "")[0];
-    const ragQuery = isEsiimsi 
-      ? question ?? ""
+    const ragQuery = isEsiimsi
+      ? [question ?? "", stick?.titleTh ?? ""].filter(Boolean).join(" ")
       : [
           question ?? "",
           ...cards.map((c) => c.card.nameTh ?? c.card.name),
@@ -123,10 +145,22 @@ export async function POST(req: Request) {
     // Build prompt using prompt builder + attach retrieved context + examples
     let prompt = "";
     if (isEsiimsi) {
+      // ตำราของใบที่จับได้ — AI ต้องขยายความจากแกนนี้ ไม่ขัดกับสิ่งที่ผู้ใช้เห็นบนหน้าอยู่แล้ว
+      const stickContext = stick
+        ? [
+            `- ชื่อใบ: ${stick.titleTh} · โชค: ${stick.luck}`,
+            `- บทกลอน: ${stick.poem.join(" / ")}`,
+            `- ความหมาย: ${stick.meaning}`,
+          ].join("\n")
+        : "";
       prompt = `คุณคือผู้เชี่ยวชาญการถอดรหัสเซียมซีระดับมาสเตอร์ที่ทำงานกับโปรเจกต์ REFFORTUNE
 
 บทบาท: ถอดรหัสคำทำนายจากเซียมซีหมายเลข ${esiimsiNum} โดยอ้างอิงจากฐานข้อมูล Knowledge Base
+เรื่องที่ผู้ถามตั้งจิตถาม: ${getEsiimsiTopicLabel(esiimsiTopic)} — ให้เน้นคำทำนายด้านนี้เป็นหลัก
+ตำราของใบนี้ (ใช้เป็นแกนของคำทำนาย ห้ามขัดแย้ง):
+${stickContext}
 เงื่อนไขสำคัญ:
+- เรียกผู้ถามว่า "คุณ" เท่านั้น ไม่ใช้คำลงท้าย นะคะ/ครับ/ค่ะ
 - ห้ามตอบว่า "ไม่มีข้อมูลในชุดข้อมูลตัวอย่าง" หรือ "ไม่พบข้อมูล"
 - ให้ใช้เนื้อหาจากตาราง "ชุดข้อมูลหมายเลขเซียมซีมาตรฐาน" ใน Knowledge Base เป็นหลัก
 - หากข้อมูลในตารางไม่ครบถ้วน ให้ใช้ความรู้เรื่องเลขศาสตร์ไทย (Thai Numerology) เพื่อสร้างคำทำนายเชิงสร้างสรรค์และเป็นมิตรตามสไตล์ REFFORTUNE
@@ -175,10 +209,7 @@ ${formatRagContext(rag.chunks)}`;
         fallback: true,
         reason: "gemini_unavailable",
         detail: text,
-        ai: {
-          summary: "ช่วงนี้ระบบอ่านเชิงลึกหนาแน่น จึงสรุปจากโครงไพ่พื้นฐานให้ก่อน",
-          cardStructure: fallbackStructure,
-        },
+        ai: fallbackAi,
       });
     }
 
@@ -188,13 +219,23 @@ ${formatRagContext(rag.chunks)}`;
     let ai: { summary: string; cardStructure: string };
     try {
       const parsed = JSON.parse(raw) as GeminiTarotResponse;
-      ai = {
-        summary: parsed.summary || "สรุปคำทำนายยังไม่สมบูรณ์",
-        cardStructure: formatAsCardStructure(parsed) || "ไม่สามารถระบุรายละเอียดได้",
-      };
+      if (isEsiimsi) {
+        const summary = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
+        if (!summary) throw new Error("empty_summary");
+        ai = { summary, cardStructure: formatEsiimsiAiStructure(parsed) };
+      } else {
+        ai = {
+          summary: parsed.summary || TAROT_FALLBACK_SUMMARY,
+          cardStructure: formatAsCardStructure(parsed) || "ไม่สามารถระบุรายละเอียดได้",
+        };
+      }
     } catch {
+      // เซียมซี: JSON เสียหรือไม่มี summary → ตอบตำราของใบนั้นแทน และไม่หักเครดิต
+      if (isEsiimsi) {
+        return NextResponse.json({ ok: true, fallback: true, reason: "malformed_json", ai: fallbackAi });
+      }
       ai = {
-        summary: "สรุปคำทำนายยังไม่สมบูรณ์ (Parse Error)",
+        summary: TAROT_FALLBACK_SUMMARY,
         cardStructure: fallbackStructure,
       };
     }

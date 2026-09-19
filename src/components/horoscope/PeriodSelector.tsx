@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { CalendarDays, CalendarRange, Sun, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { TimePeriod } from '@/lib/horoscope/types';
 
@@ -10,93 +11,55 @@ export interface PeriodSelectorProps {
   className?: string;
 }
 
-interface PeriodOption {
+export interface PeriodOption {
   period: TimePeriod;
   thaiName: string;
   thaiDesc: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
-const periodOptions: PeriodOption[] = [
-  {
-    period: TimePeriod.DAILY,
-    thaiName: 'รายวัน',
-    thaiDesc: 'ดูดวงวันนี้',
-    icon: '📅'
-  },
-  {
-    period: TimePeriod.WEEKLY,
-    thaiName: 'รายสัปดาห์',
-    thaiDesc: 'ดูดวงสัปดาห์นี้',
-    icon: '📆'
-  },
-  {
-    period: TimePeriod.MONTHLY,
-    thaiName: 'รายเดือน',
-    thaiDesc: 'ดูดวงเดือนนี้',
-    icon: '🗓️'
-  }
+export const PERIOD_OPTIONS: ReadonlyArray<PeriodOption> = [
+  { period: TimePeriod.DAILY, thaiName: 'รายวัน', thaiDesc: 'ดูดวงวันนี้', icon: Sun },
+  { period: TimePeriod.WEEKLY, thaiName: 'รายสัปดาห์', thaiDesc: 'ดูดวงสัปดาห์นี้', icon: CalendarRange },
+  { period: TimePeriod.MONTHLY, thaiName: 'รายเดือน', thaiDesc: 'ดูดวงเดือนนี้', icon: CalendarDays },
 ];
 
 /**
- * PeriodSelector Component
- * 
- * Displays time period options (daily, weekly, monthly) for horoscope readings.
- * Maintains zodiac selection when switching between periods.
- * 
- * @example
- * <PeriodSelector 
- *   value={selectedPeriod} 
- *   onChange={setSelectedPeriod} 
- * />
+ * Daily / weekly / monthly toggle. Three equal cells so every label fits at
+ * 390px; the zodiac choice is kept by the parent when the period changes.
  */
 export function PeriodSelector({ value, onChange, className }: PeriodSelectorProps) {
   return (
-    <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4', className)}>
-      {periodOptions.map((option) => {
+    <div
+      role="group"
+      aria-label="เลือกช่วงเวลา"
+      data-testid="period-selector"
+      className={cn('grid grid-cols-3 gap-2', className)}
+    >
+      {PERIOD_OPTIONS.map((option) => {
         const isSelected = value === option.period;
-        
+        const Icon = option.icon;
+
         return (
           <button
             key={option.period}
             type="button"
             onClick={() => onChange?.(option.period)}
-            className={cn(
-              'flex flex-col items-center justify-center gap-2 rounded-[var(--radius-lg)] border p-4 transition-all duration-150',
-              'hover:-translate-y-0.5 active:translate-y-px',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-              isSelected
-                ? 'border-accent bg-accent/10 shadow-[var(--shadow-soft)]'
-                : 'border-border bg-surface hover:border-border-strong hover:bg-bg-elevated'
-            )}
             aria-pressed={isSelected}
-            aria-label={`เลือก${option.thaiName}`}
+            className={cn(
+              'flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-card border px-2 py-3 text-center',
+              'transition-[background-color,border-color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.98]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+              isSelected
+                ? 'border-gold bg-gold-soft shadow-gold-glow'
+                : 'border-line bg-surface hover:bg-sunk'
+            )}
           >
-            <span 
-              className={cn(
-                'text-3xl transition-transform',
-                isSelected && 'scale-110'
-              )}
-              aria-hidden="true"
-            >
-              {option.icon}
-            </span>
-            <span 
-              className={cn(
-                'text-base font-semibold transition-colors',
-                isSelected ? 'text-accent' : 'text-fg'
-              )}
-            >
+            <Icon className="h-5 w-5 text-gold" strokeWidth={1.5} aria-hidden="true" />
+            <span className={cn('text-sm font-semibold', isSelected ? 'text-gold' : 'text-fg')}>
               {option.thaiName}
             </span>
-            <span 
-              className={cn(
-                'text-xs transition-colors',
-                isSelected ? 'text-accent/80' : 'text-fg-muted'
-              )}
-            >
-              {option.thaiDesc}
-            </span>
+            <span className="text-[13px] leading-tight text-fg-muted">{option.thaiDesc}</span>
           </button>
         );
       })}

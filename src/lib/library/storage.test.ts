@@ -373,7 +373,9 @@ describe('Library Storage - 50-Entry Limit', () => {
     const library = loadLibrary();
     expect(library.items.length).toBe(50);
     
-    const updated = library.items.find(r => r.id === 'reading-25');
+    const updated = library.items.find(
+      (r): r is SavedTarotReading => 'kind' in r && r.kind === 'tarot' && r.id === 'reading-25'
+    );
     expect(updated?.count).toBe(3);
     expect(updated?.question).toBe('Updated question');
   });

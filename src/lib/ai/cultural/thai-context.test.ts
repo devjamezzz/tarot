@@ -2,7 +2,7 @@
  * Unit tests for Thai cultural context module
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import {
   THAI_BUDDHIST_PHILOSOPHY,
   THAI_ASTROLOGY_CONCEPTS,
@@ -16,9 +16,9 @@ import {
 describe('Thai Cultural Context Constants', () => {
   it('should export Buddhist philosophy constant', () => {
     expect(THAI_BUDDHIST_PHILOSOPHY).toBeDefined();
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('กฎแห่งกรรม');
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('การทำบุญ');
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('สติและสมาธิ');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('หลักกรรม (Law of Karma)');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('กรรมดี (บุญ)');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('หลักสติปัญญา (Mindfulness & Wisdom)');
     expect(THAI_BUDDHIST_PHILOSOPHY).toContain('ทางสายกลาง');
   });
 
@@ -33,14 +33,15 @@ describe('Thai Cultural Context Constants', () => {
     expect(THAI_NUMEROLOGY_BELIEFS).toBeDefined();
     expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลข 9');
     expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลข 8');
-    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขรวมและเลขราก');
+    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขรวม (Sum)');
+    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขราก (Root Number)');
   });
 
   it('should export guidance style constant', () => {
     expect(THAI_GUIDANCE_STYLE).toBeDefined();
     expect(THAI_GUIDANCE_STYLE).toContain('อบอุ่น');
     expect(THAI_GUIDANCE_STYLE).toContain('ตรงไปตรงมา');
-    expect(THAI_GUIDANCE_STYLE).toContain('ให้กำลังใจ');
+    expect(THAI_GUIDANCE_STYLE).toContain('ภาษาที่สร้างแรงบันดาลใจ');
   });
 
   it('should export complete divination context object', () => {
@@ -55,7 +56,7 @@ describe('Thai Cultural Context Constants', () => {
 describe('getContextForDivinationType', () => {
   it('should return context with astrology for tarot type', () => {
     const context = getContextForDivinationType('tarot');
-    expect(context).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(context).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(context).toContain('อบอุ่น'); // Guidance style
     expect(context).toContain('ดวงชะตา'); // Astrology
     expect(context).not.toContain('เลข 9'); // Should not include numerology
@@ -63,7 +64,7 @@ describe('getContextForDivinationType', () => {
 
   it('should return context with astrology and numerology for spirit type', () => {
     const context = getContextForDivinationType('spirit');
-    expect(context).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(context).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(context).toContain('อบอุ่น'); // Guidance style
     expect(context).toContain('ดวงชะตา'); // Astrology
     expect(context).toContain('เลข 9'); // Numerology
@@ -71,7 +72,7 @@ describe('getContextForDivinationType', () => {
 
   it('should return context with numerology for numerology type', () => {
     const context = getContextForDivinationType('numerology');
-    expect(context).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(context).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(context).toContain('อบอุ่น'); // Guidance style
     expect(context).toContain('เลข 9'); // Numerology
     expect(context).not.toContain('ดวงชะตา'); // Should not include astrology
@@ -79,7 +80,7 @@ describe('getContextForDivinationType', () => {
 
   it('should return base context for chat type', () => {
     const context = getContextForDivinationType('chat');
-    expect(context).toContain('กฎแห่งกรรม'); // Buddhist philosophy
+    expect(context).toContain('หลักกรรม (Law of Karma)'); // Buddhist philosophy
     expect(context).toContain('อบอุ่น'); // Guidance style
     expect(context).not.toContain('ดวงชะตา'); // Should not include astrology
     expect(context).not.toContain('เลข 9'); // Should not include numerology
@@ -95,7 +96,7 @@ describe('getContextForDivinationType', () => {
 
     types.forEach((type) => {
       const context = getContextForDivinationType(type);
-      expect(context).toContain('กฎแห่งกรรม');
+      expect(context).toContain('หลักกรรม (Law of Karma)');
       expect(context).toContain('อบอุ่น');
     });
   });
@@ -125,9 +126,9 @@ describe('getCulturalElement', () => {
 
 describe('Cultural Context Content Validation', () => {
   it('should contain all required Buddhist concepts', () => {
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('กฎแห่งกรรม');
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('การทำบุญ');
-    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('สติและสมาธิ');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('หลักกรรม (Law of Karma)');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('กรรมดี (บุญ)');
+    expect(THAI_BUDDHIST_PHILOSOPHY).toContain('หลักสติปัญญา (Mindfulness & Wisdom)');
     expect(THAI_BUDDHIST_PHILOSOPHY).toContain('ทางสายกลาง');
     expect(THAI_BUDDHIST_PHILOSOPHY).toContain('อนิจจัง');
   });
@@ -146,14 +147,15 @@ describe('Cultural Context Content Validation', () => {
     expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลข 5');
     expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลข 3');
     expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลข 1');
-    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขรวมและเลขราก');
+    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขรวม (Sum)');
+    expect(THAI_NUMEROLOGY_BELIEFS).toContain('เลขราก (Root Number)');
   });
 
   it('should contain all required guidance style elements', () => {
     expect(THAI_GUIDANCE_STYLE).toContain('อบอุ่น');
     expect(THAI_GUIDANCE_STYLE).toContain('ตรงไปตรงมา');
-    expect(THAI_GUIDANCE_STYLE).toContain('ให้กำลังใจ');
-    expect(THAI_GUIDANCE_STYLE).toContain('เน้นสิ่งที่ทำได้');
-    expect(THAI_GUIDANCE_STYLE).toContain('ใช้ภาษาที่เข้าใจง่าย');
+    expect(THAI_GUIDANCE_STYLE).toContain('ภาษาที่สร้างแรงบันดาลใจ');
+    expect(THAI_GUIDANCE_STYLE).toContain('เน้นสิ่งที่ผู้ถามควบคุมได้');
+    expect(THAI_GUIDANCE_STYLE).toContain('ภาษาที่เข้าใจง่ายแต่ลึกซึ้ง');
   });
 });

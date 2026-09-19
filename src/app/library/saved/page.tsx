@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { AppBar } from "@/components/nav/AppBar";
+import { PageContainer } from "@/components/ui/PageContainer";
+import { Skeleton } from "@/components/ui/Skeleton";
 import SavedClient from "./savedClient";
 
 export const metadata: Metadata = {
   title: "คลังคำทำนายของฉัน — บันทึกผลการดูดวง",
-  description: "ดูบันทึกผลการดูดวงที่คุณเคยทำไว้ ทาโรต์ ดวงชะตา ความรัก ปีจีน และอื่นๆ",
+  description: "ดูบันทึกผลการดูดวงที่คุณเคยทำไว้ ทาโรต์ ดวงชะตา ความรัก ราศีจีน และอื่น ๆ",
   robots: { index: false, follow: true },
 };
 
@@ -12,9 +15,14 @@ export default function SavedReadingsPage() {
   return (
     <Suspense
       fallback={
-        <main className="mx-auto w-full max-w-6xl px-4 py-10 text-sm text-fg-muted">
-          กำลังโหลด…
-        </main>
+        <PageContainer variant="narrow">
+          <AppBar label="คลังของฉัน" title="บันทึก" caption="กำลังโหลด…" />
+          <div className="mt-4 space-y-3" aria-busy="true">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </PageContainer>
       }
     >
       <SavedClient />

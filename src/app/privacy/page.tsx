@@ -1,18 +1,55 @@
-import { AppBar } from "@/components/nav/AppBar";
-import { Card } from "@/components/ui/Card";
+import type { Metadata } from "next";
+import { LegalDocument, type LegalSection } from "@/components/auth/LegalDocument";
+
+export const metadata: Metadata = {
+  title: "นโยบายความเป็นส่วนตัว",
+};
+
+// ร่าง — เจ้าของระบบต้องตรวจและยืนยันข้อความก่อนเผยแพร่จริง
+const SECTIONS: LegalSection[] = [
+  {
+    heading: "ข้อมูลที่เราเก็บ",
+    paragraphs: [
+      "เมื่อคุณเข้าสู่ระบบด้วย LINE เราจะได้รับชื่อที่แสดง รูปโปรไฟล์ และรหัสผู้ใช้ LINE ของคุณ เพื่อสร้างบัญชีในระบบ",
+      "คำถาม ไพ่ที่เลือก และผลดูดวงที่คุณเลือกบันทึก จะถูกเก็บไว้เพื่อให้คุณเปิดดูซ้ำได้จากทุกอุปกรณ์",
+      "ข้อมูลการใช้งานทั่วไป เช่น หน้าที่เปิดและประเภทอุปกรณ์ ใช้เพื่อปรับปรุงบริการเท่านั้น",
+    ],
+  },
+  {
+    heading: "เราใช้ข้อมูลอย่างไร",
+    paragraphs: [
+      "เพื่อแสดงผลดูดวง บันทึกประวัติ และจัดการเครดิตหรือแพ็กเกจของคุณ",
+      "เพื่อติดต่อคุณผ่าน LINE เมื่อคุณอนุญาต เช่น การแจ้งเตือนไพ่รายวันหรือผลที่หมอดูตอบกลับ",
+      "คำถามของคุณอาจถูกส่งไปประมวลผลกับผู้ให้บริการปัญญาประดิษฐ์ โดยไม่แนบข้อมูลที่ระบุตัวตนของคุณ",
+    ],
+  },
+  {
+    heading: "การเก็บรักษาและการเปิดเผย",
+    paragraphs: [
+      "ข้อมูลถูกเก็บบนระบบที่มีการเข้ารหัสและจำกัดสิทธิ์การเข้าถึงเฉพาะผู้ดูแลระบบ",
+      "เราไม่ขายหรือแบ่งปันข้อมูลส่วนบุคคลของคุณให้บุคคลภายนอก เว้นแต่กฎหมายกำหนด",
+    ],
+  },
+  {
+    heading: "สิทธิของคุณ",
+    paragraphs: [
+      "คุณสามารถขอดู แก้ไข หรือลบข้อมูลของคุณได้ทุกเมื่อ โดยติดต่อเราผ่าน LINE Official Account",
+      "คุณสามารถออกจากระบบและยกเลิกการเชื่อมต่อกับ LINE ได้จากหน้าบัญชีของฉัน",
+    ],
+  },
+  {
+    heading: "การติดต่อ",
+    paragraphs: ["หากมีคำถามเกี่ยวกับนโยบายนี้ ติดต่อเราได้ผ่าน LINE Official Account ของ REFFORTUNE"],
+  },
+];
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto w-full max-w-lg">
-      <AppBar title="Privacy" backHref="/profile" />
-      <div className="px-5 pb-8">
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-fg">Coming soon</p>
-          <p className="mt-2 text-sm text-fg-muted">
-            Privacy policy will be published here.
-          </p>
-        </Card>
-      </div>
-    </main>
+    <LegalDocument
+      title="นโยบายความเป็นส่วนตัว"
+      caption="ฉบับร่าง · รอเจ้าของระบบยืนยันเนื้อหา"
+      sections={SECTIONS}
+      draft
+    />
   );
 }

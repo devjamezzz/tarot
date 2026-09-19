@@ -6,7 +6,7 @@ import type { ChatTurn } from "@/lib/ai/types";
 type ChatTurnLegacy = { role: "user" | "assistant"; text: string };
 
 const FALLBACK_ANSWER =
-  "ขออภัย ตอนนี้ระบบอ่านเชิงลึกหนาแน่น ลองพิมพ์คำถามอีกครั้งในไม่กี่นาที หรือทบทวนภาพรวมไพ่ที่ออกพร้อมคำแนะนำเดิมก่อนก็ได้นะคะ";
+  "ตอนนี้ยังตอบคำถามเพิ่มเติมไม่ได้ ลองพิมพ์คำถามอีกครั้งในไม่กี่นาที หรือทบทวนภาพรวมไพ่ที่ออกพร้อมคำแนะนำเดิมก่อนก็ได้";
 
 export async function POST(req: Request) {
   try {

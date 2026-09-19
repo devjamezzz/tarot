@@ -31,7 +31,7 @@ function makeSessionId(prefix: string): string {
 export async function processReading(request: ReadingRequest): Promise<ReadingResult> {
   const { type, input } = request;
   
-  let data: any;
+  let data: unknown;
   let cached = false;
   
   // Route to appropriate engine based on reading type.
@@ -119,7 +119,7 @@ export async function processReading(request: ReadingRequest): Promise<ReadingRe
  * @param options - Optional parameters (e.g., period for horoscopes)
  * @returns Credit cost
  */
-export function getCreditCost(type: ReadingType, options?: any): number {
+export function getCreditCost(type: ReadingType, options?: { period?: string }): number {
   switch (type) {
     case ReadingType.HOROSCOPE:
     case ReadingType.SPECIALIZED:
@@ -162,7 +162,7 @@ export function runReadingPipeline(input: ReadingInput): ReadingSession | null {
     return {
       sessionId: makeSessionId("tarot"),
       vertical: "tarot",
-      headline: "Tarot Reading Result",
+      headline: "ผลการเปิดไพ่ทาโรต์",
       summary: reading.summary,
       tags: ["tarot", `spread-${input.count}`],
       blocks: [
@@ -170,7 +170,7 @@ export function runReadingPipeline(input: ReadingInput): ReadingSession | null {
         ...reading.sections.map((section) =>
           createBlock({ id: `tarot-${section.position}`, type: "insight", title: section.title, body: `${section.description}\n${section.focus}` }),
         ),
-        createBlock({ id: "tarot-action", type: "action", title: "Action ต่อจากนี้", body: "เขียน 1 การตัดสินใจภายใน 24 ชั่วโมง • กำหนดตัวชี้วัดที่วัดได้ • เช็กอินอีกครั้งใน 7 วัน" }),
+        createBlock({ id: "tarot-action", type: "action", title: "สิ่งที่ควรทำต่อจากนี้", body: "เขียน 1 การตัดสินใจภายใน 24 ชั่วโมง • กำหนดตัวชี้วัดที่วัดได้ • เช็กอินอีกครั้งใน 7 วัน" }),
       ],
     };
   }
@@ -183,7 +183,7 @@ export function runReadingPipeline(input: ReadingInput): ReadingSession | null {
     return {
       sessionId: makeSessionId("spirit"),
       vertical: "spirit-card",
-      headline: "Spirit Card Insight",
+      headline: "ไพ่จิตวิญญาณของคุณ",
       summary: `${result.card.nameTh ?? result.card.name} (${result.orientation === "upright" ? "ตั้งตรง" : "กลับหัว"})`,
       tags: ["spirit-card", `life-path-${result.lifePathNumber}`],
       blocks: [
@@ -200,7 +200,7 @@ export function runReadingPipeline(input: ReadingInput): ReadingSession | null {
   return {
     sessionId: makeSessionId("numerology"),
     vertical: "numerology",
-    headline: "Numerology Insight",
+    headline: "เลขศาสตร์ของคุณ",
     summary: `คะแนน ${result.score}/99 (${result.tier}) จากเบอร์ ${result.normalizedPhone}`,
     tags: ["numerology", `tier-${result.tier}`],
     blocks: [

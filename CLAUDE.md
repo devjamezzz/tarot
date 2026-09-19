@@ -16,7 +16,12 @@ npm run lint             # eslint (uses eslint-config-next core-web-vitals + typ
 npm run test             # vitest run (single pass)
 npm run test:watch       # vitest watch
 npm run test:coverage    # vitest run --coverage (v8 provider)
+npm run cf:build         # OpenNext build for Cloudflare Workers (wrangler.jsonc → .open-next/)
+npm run cf:preview       # local preview of the Worker build
+npm run cf:deploy        # deploy to Cloudflare (worker name: reffortune-mystic)
 ```
+
+`predev` and `prebuild` run `npm run prerag` (`scripts/generate-rag-data.mjs`), which regenerates `src/lib/rag/data.generated.ts` — see RAG retriever below.
 
 Run a single vitest file: `npx vitest run src/lib/ai/prompts.test.ts`
 Run tests by name: `npx vitest run -t "validates tarot prompt"`
@@ -67,12 +72,18 @@ Every divination type has a deterministic engine in `src/lib/<domain>/` (e.g. `t
 
 When adding a new reading type, add a `ReadingType` enum value, route it in `processReading()`, and emit blocks through the same `InterpretationBlock` shape so the result UI in `src/components/reading/` keeps working.
 
+The newer verticals (`horoscope`, `compatibility`, `chinese-zodiac`, `name-numerology`) each keep a `baseline.ts` beside `engine.ts` — the deterministic fallback text lives there, separate from the computation. Follow this pattern for new verticals.
+
+### Astrology engine (`src/lib/astrology/`)
+
+Thai/Vedic natal-chart computation split by concern: planet positions (`positions.ts`), ayanamsa, lagna/ascendant (`lagna.ts`), houses, divisional charts (`divisional.ts`), dignities, dasha periods, ตรียางค์/poison (`poison.ts`, `triwai.ts`), and sunrise offset (`sunrise.ts`). Entry point is `engine.ts → computeNatalChart()` returning a `NatalChart`; province data for local time is in `thai-provinces.ts`. Driven by `src/app/astrology/` (`chart/ChartClient.tsx`).
+
 ### Prompt builder system (`src/lib/ai/`)
 
 All Gemini prompts go through builders in `src/lib/ai/prompts.ts` — never inline a prompt string in a route. Architecture:
 
 - `templates/base.ts` — `PromptBuilder` fluent API and `buildBasePrompt()` enforcing section order: role → cultural context → few-shot examples → instructions → user data.
-- `templates/{tarot,spirit,numerology,chat,daily-card,spiritPath}.ts` — per-vertical builders exported as `build*Prompt`.
+- `templates/{tarot,spirit,numerology,chat,daily-card,spiritPath,lucky-numbers}.ts` — per-vertical builders exported as `build*Prompt`.
 - `examples/*` — few-shot examples consumed by builders.
 - `cultural/thai-context.ts` — shared Thai cultural framing.
 - `validation.ts` — post-Gemini validation (min Thai char count, required sections `ภาพรวมสถานการณ์` / `จุดที่ควรระวัง` / `แนวทางที่ควรทำ`) plus in-memory metrics (`getValidationMetrics`, `getValidationPassRate`, `getFallbackUsageRate`, `getErrorLogs`). Metrics surface at `/ai-metrics`.
@@ -81,7 +92,7 @@ Changing a template propagates to every route using it — that's the point. Kee
 
 ### RAG retriever
 
-`src/lib/rag/retriever.ts` is a dependency-free lexical retriever over markdown/JSON in `public/docs/` (loaded via `fs` at request time, so it works in Node runtime API routes only — not Edge). Routes call `retrieveRag(...)` then append `formatRagContext(chunks)` to the built prompt. The `esiimsi` (เซียมซี) flow uses its own KB file and a special prompt branch in `src/app/api/ai/tarot/route.ts` — preserve that branch when refactoring.
+`src/lib/rag/retriever.ts` is a dependency-free lexical retriever. The markdown/JSON files in `public/docs/` are inlined at build time by `scripts/generate-rag-data.mjs` into `src/lib/rag/data.generated.ts` (auto-generated — never edit by hand), so the retriever needs no filesystem and works in Edge/Worker runtimes. Routes call `retrieveRag(...)` then append `formatRagContext(chunks)` to the built prompt. The `esiimsi` (เซียมซี) flow uses its own KB file and a special prompt branch in `src/app/api/ai/tarot/route.ts` — preserve that branch when refactoring.
 
 ### Client state
 
@@ -91,7 +102,7 @@ Two zustand stores in `src/store/`, both `persist`-ed to localStorage:
 
 Library/saved-reading persistence is separate: `src/lib/library/storage.ts` (versioned key `reffortune.library.v1`, `MAX_ENTRIES=50`) with a `useLibrary` hook. localStorage access must be client-only — components touching it need `'use client'`.
 
-Theme is managed by `src/lib/theme/ThemeProvider.tsx` (themes: `light` | `pastel` | `rainbow` | `soft`), applied via `data-theme` on `<html>`. `src/app/layout.tsx` contains an inline pre-hydration script that reads `mf:theme` from localStorage to avoid FOUC — keep it in sync if theme storage keys change.
+Theme is managed by `src/lib/theme/ThemeProvider.tsx` (themes: `light` | `pastel` | `rainbow` | `soft`), applied via `data-theme` on `<html>`. `src/app/layout.tsx` contains an inline pre-hydration script that reads the `reffortune-theme` localStorage key (the same key `ThemeProvider` writes) to avoid FOUC — keep it in sync if theme storage keys change.
 
 ### Validation
 
@@ -112,4 +123,18 @@ Theme is managed by `src/lib/theme/ThemeProvider.tsx` (themes: `light` | `pastel
 - Many files have a `*_Zone.Identifier` sibling (Windows alternate-data-stream metadata from a WSL/Windows transfer). They're zero-byte and tracked — leave them alone unless asked to clean up.
 - `.kiro/specs/` and `.kiro/steering/` contain feature specs and product/tech/structure briefs that are the source of truth for ongoing work (`enhanced-ai-prompts`, `popular-fortune-features`).
 - `IMPLEMENTATION.md`, `SYSTEM_LEAP_BLUEPRINT.md`, and `CHECKPOINT_*` documents describe sprint-level intent and acceptance criteria; consult them before large refactors.
-- `public/docs/` ships the RAG knowledge base — do not delete files referenced in `src/lib/rag/retriever.ts` `FILES`.
+- `public/docs/` ships the RAG knowledge base — do not delete files listed in `FILES` in `scripts/generate-rag-data.mjs`. Adding or renaming a doc requires re-running the script (happens automatically via `predev`/`prebuild`).
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `devjamezzz/tarot` (always pass `--repo devjamezzz/tarot` — this clone has two remotes). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). See `docs/agents/domain.md`.

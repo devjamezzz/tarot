@@ -2,7 +2,7 @@
  * Unit tests for response validation system
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   validateMinimumLength,
   validateStructureSections,

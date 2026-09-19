@@ -1,11 +1,14 @@
 import { getCardById, TAROT_DECK } from "./deck";
+import type { SpreadDef } from "./spreads";
 import { DrawnCard, Orientation, TarotCard } from "./types";
 
+// Count-keyed fallback labels, used when no named SpreadDef is supplied.
 const spreadLabels: Record<number, string[]> = {
   1: ["คำแนะนำหลัก"],
   2: ["ทางเลือก A", "ทางเลือก B"],
   3: ["อดีต", "ปัจจุบัน", "อนาคต"],
   4: ["สถานการณ์", "อุปสรรค", "คำแนะนำ", "ผลลัพธ์"],
+  5: ["สถานการณ์ปัจจุบัน", "สิ่งที่ผ่านมา", "สิ่งที่ซ่อนอยู่", "คำแนะนำ", "แนวโน้ม"],
   10: [
     "สถานการณ์ปัจจุบัน",
     "ความท้าทาย",
@@ -19,6 +22,15 @@ const spreadLabels: Record<number, string[]> = {
     "ผลลัพธ์โดยรวม",
   ],
 };
+
+/**
+ * Position labels for a reading: the named spread's positions when given,
+ * otherwise the count-keyed fallback (empty when the count is unknown).
+ */
+export function getSpreadLabels(count: number, spread?: SpreadDef | null): string[] {
+  if (spread && spread.positionsTh.length > 0) return spread.positionsTh;
+  return spreadLabels[count] ?? [];
+}
 
 export function shuffleCards(cards: TarotCard[]): TarotCard[] {
   const copy = [...cards];
@@ -80,8 +92,9 @@ export function summarizeReading(input: {
   cards: DrawnCard[];
   count: number;
   question?: string;
+  spread?: SpreadDef | null;
 }) {
-  const labels = spreadLabels[input.count] ?? input.cards.map((_, i) => `ตำแหน่ง ${i + 1}`);
+  const labels = getSpreadLabels(input.count, input.spread);
   const sections = input.cards.map((drawn, index) => {
     const label = labels[index] ?? `ตำแหน่ง ${index + 1}`;
     const orientationLabel = drawn.orientation === "upright" ? "ตั้งตรง" : "กลับหัว";
@@ -89,7 +102,7 @@ export function summarizeReading(input: {
     return {
       position: index + 1,
       label,
-      title: `${label} — ${drawn.card.name} (${orientationLabel})`,
+      title: `${label} — ${drawn.card.nameTh ?? drawn.card.name} (${orientationLabel})`,
       description: cardMeaning(drawn),
       focus:
         drawn.orientation === "upright"

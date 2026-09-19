@@ -4,19 +4,29 @@ export interface BaseShareableData {
   vertical: "tarot" | "spirit" | "numerology" | "daily" | "horoscope" | "compatibility" | "chinese-zodiac";
 }
 
+export interface TarotShareCard {
+  name: string;
+  nameTh?: string;
+  image?: string;
+  /** Thai numeral for the face medallion (majors 0–21, pips 1–10); court cards omit it. */
+  numeralTh?: string;
+  orientation: "upright" | "reversed";
+  /** Baseline meaning — optional; the share image never renders it. */
+  meaning?: string;
+  /** Thai position label from the spread (อดีต / ปัจจุบัน / …). */
+  position?: string;
+}
+
 export interface TarotShareData extends BaseShareableData {
   vertical: "tarot";
-  cards: Array<{
-    name: string;
-    nameTh?: string;
-    image?: string;
-    orientation: "upright" | "reversed";
-    meaning: string;
-    position?: string;
-  }>;
-  reading: string;
+  cards: TarotShareCard[];
+  /** Engine summary — optional and hidden from the share image (owner constraint). */
+  reading?: string;
   question?: string;
+  /** Thai spread title, e.g. "อดีต-ปัจจุบัน-อนาคต". */
   spreadType: string;
+  /** Thai topic label, e.g. "ความรัก". */
+  topicTh?: string;
 }
 
 export interface SpiritShareData extends BaseShareableData {
